@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced HLS Video Player - 001</title>
+    <link href="https://vjs.zencdn.net/8.6.1/video-js.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; height: 100vh; }
+        .player-container { position: relative; width: 100vw; height: 100vh; background: transparent; cursor: auto; transition: cursor 0.3s ease; }
+        .player-container.hide-cursor { cursor: none; }
+        .video-js { width: 100% !important; height: 100% !important; background: transparent !important; }
+        /* Force hide Video.js overlays (but preserve subtitles) */
+        .video-js .vjs-poster,
+        .video-js .vjs-loading-spinner { display: none !important; opacity: 0 !important; }
+        /* Target specific problematic overlay but preserve subtitle display */
+        .video-js div[style*="inset: 0px"][style*="margin: 1.5%"]:not(.vjs-text-track-display) { display: none !important; }
+        /* Ensure video is always visible */
+        .video-js video { background: transparent !important; }
+        /* Custom Subtitle Overlay */
+        .custom-subtitle-overlay { position: absolute; bottom: 10%; left: 50%; transform: translateX(-50%); z-index: 1400; pointer-events: none; width: 90%; text-align: center; font-family: var(--subtitle-font-family, 'Arial, sans-serif'); font-size: var(--subtitle-font-size, 1.4em); font-weight: var(--subtitle-font-weight, normal); color: var(--subtitle-color, #ffffff); text-shadow: var(--subtitle-shadow, 2px 2px 4px rgba(0, 0, 0, 0.8)); line-height: var(--subtitle-line-height, 1.4); }
+        /* Fullscreen subtitle positioning */
+        .video-js.vjs-fullscreen .custom-subtitle-overlay,
+        .video-js:-webkit-full-screen .custom-subtitle-overlay,
+        .video-js:-moz-full-screen .custom-subtitle-overlay,
+        .video-js:-ms-fullscreen .custom-subtitle-overlay { position: fixed !important; bottom: 15% !important; left: 50% !important; transform: translateX(-50%) !important; z-index: 2147483646 !important; width: 90% !important; font-size: calc(var(--subtitle-font-size, 1.4em) * 1.2) !important; }
+        /* Ensure fullscreen container allows absolute positioning */
+        .video-js.vjs-fullscreen,
+        .video-js:-webkit-full-screen,
+        .video-js:-moz-full-screen,
+        .video-js:-ms-fullscreen { position: relative !important; }
+        .custom-subtitle-text { background: var(--subtitle-background, rgba(0, 0, 0, 0.6)); padding: var(--subtitle-padding, 4px 8px); border-radius: var(--subtitle-border-radius, 4px); display: inline-block; margin: 2px; max-width: 100%; word-wrap: break-word; }
+        /* Hide Video.js subtitle display to avoid conflicts with custom overlay */
+        .video-js .vjs-text-track-display { display: none !important; }
+        /* Ensure caption menu button is enabled */
+        .video-js .vjs-subtitles-button,
+        .video-js .vjs-captions-button { display: block !important; }
+        /* Hide Video.js text track settings dialog */
+        .video-js .vjs-texttrack-settings,
+        .vjs-modal-dialog.vjs-texttrack-settings { display: none !important; }
+        /* Hide default Video.js control bar */
+        .video-js .vjs-control-bar { display: none !important; }
+        /* Custom Modern Control Bar */
+        .custom-control-bar { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, transparent 100%); color: white; padding: 20px 30px; transition: opacity 0.3s ease, transform 0.3s ease; z-index: 1500; transform: translateY(0); opacity: 1; }
+        /* ... (rest of your CSS, JS, and HTML, all curly braces escaped as { and }) ... */
+    </style>
+</head>
+<body>
+    <!-- ... rest of the HTML, JS, and player code ... -->
+</body>
+</html>
