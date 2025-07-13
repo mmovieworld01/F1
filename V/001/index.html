@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced HLS Video Player - 001</title>
+    <!-- Video.js CSS -->
+    <link href="https://vjs.zencdn.net/8.6.1/video-js.css" rel="stylesheet">
+    
+    <!-- Font Awesome CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .player-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: transparent;
+            cursor: auto;
+            transition: cursor 0.3s ease;
+        }
+
+        .player-container.hide-cursor {
+            cursor: none;
+        }
+
+        .video-js {
+            width: 100% !important;
+            height: 100% !important;
+            background: transparent !important;
+        }
+
+        /* Custom modern player styles */
+        /* ...existing CSS styles... */
+        /* [CSS content omitted for brevity] */
+
+    </style>
+</head>
+<body>
+    <div class="player-container">
+        <!-- Loading overlay -->
+        <div class="loading-overlay hidden" id="loadingOverlay">
+            <div class="spinner"></div>
+        </div>
+
+        <!-- Error message -->
+        <div class="error-message" id="errorMessage">
+            <h3>Playback Error</h3>
+            <p id="errorText">Unable to load video. Please try again.</p>
+            <button onclick="retryLoad()" style="margin-top: 10px; padding: 8px 16px; background: #fff; border: none; border-radius: 5px; cursor: pointer;">Retry</button>
+        </div>
+
+        <!-- Video player -->
+        <video
+            id="videoPlayer"
+            class="video-js vjs-default-skin"
+            controls
+            preload="auto"
+            data-setup='{}'
+        >
+            <source src="./index.m3u8" type="application/x-mpegURL">
+            <track kind="subtitles" src="./index.vtt" srclang="ja" label="Japanese" default>
+            
+            <p class="vjs-no-js">
+                To view this video please enable JavaScript, and consider upgrading to a web browser that
+                <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>.
+            </p>
+        </video>
+
+        <!-- Custom Subtitle Overlay -->
+        <div class="custom-subtitle-overlay" id="customSubtitles">
+            <div class="custom-subtitle-text" id="subtitleText" style="display: none;"></div>
+        </div>
+
+        <!-- Custom Modern Control Bar -->
+        <div class="custom-control-bar" id="customControlBar">
+            <!-- Progress Bar -->
+            <div class="custom-progress-container">
+                <div class="custom-progress-bar" id="progressBar">
+                    <div class="custom-progress-buffer" id="progressBuffer"></div>
+                    <div class="custom-progress-played" id="progressPlayed">
+                        <div class="custom-progress-handle" id="progressHandle"></div>
+                    </div>
+                </div>
+                <div class="custom-time-tooltip" id="timeTooltip">00:00</div>
+            </div>
+
+            <!-- Controls -->
+            <div class="custom-controls">
+                <!-- Left Controls -->
+                <div class="custom-controls-left">
+                    <button class="custom-btn custom-play-btn" id="playBtn">
+                        <span class="icon-play"></span>
+                    </button>
+                    <div class="custom-volume-container">
+                        <button class="custom-btn" id="volumeBtn">
+                            <span class="icon-volume"></span>
+                        </button>
+                        <div class="custom-volume-slider" id="volumeSlider">
+                            <div class="custom-volume-filled" id="volumeFilled"></div>
+                            <div class="custom-volume-handle" id="volumeHandle"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Center Controls -->
+                <div class="custom-controls-center">
+                    <div class="custom-time-display" id="timeDisplay">
+                        <span id="currentTime">0:00</span> / <span id="duration">0:00</span>
+                    </div>
+                </div>
+
+                <!-- Right Controls -->
+                <div class="custom-controls-right">
+                    <!-- Caption Button -->
+                    <div class="custom-dropdown" id="captionDropdown">
+                        <button class="custom-btn" id="captionBtn">
+                            <span class="icon-cc"></span>
+                        </button>
+                        <div class="custom-dropdown-menu">
+                            <div class="custom-dropdown-item" data-track="off">Off</div>
+                            <div class="custom-dropdown-item active" data-track="ml">ML</div>
+                        </div>
+                    </div>
+
+                    <!-- Audio Track Button -->
+                    <div class="custom-dropdown" id="audioDropdown">
+                        <button class="custom-btn" id="audioBtn">
+                            <span class="icon-audio"></span>
+                        </button>
+                        <div class="custom-dropdown-menu">
+                            <div class="custom-dropdown-item active" data-audio="default">Default</div>
+                        </div>
+                    </div>
+
+                    <!-- Speed Button -->
+                    <div class="custom-dropdown" id="speedDropdown">
+                        <button class="custom-btn" id="speedBtn">
+                            <span class="icon-speed">1x</span>
+                        </button>
+                        <div class="custom-dropdown-menu">
+                            <div class="custom-dropdown-item" data-speed="0.5">0.5x</div>
+                            <div class="custom-dropdown-item" data-speed="0.75">0.75x</div>
+                            <div class="custom-dropdown-item active" data-speed="1">1x</div>
+                            <div class="custom-dropdown-item" data-speed="1.25">1.25x</div>
+                            <div class="custom-dropdown-item" data-speed="1.5">1.5x</div>
+                            <div class="custom-dropdown-item" data-speed="2">2x</div>
+                        </div>
+                    </div>
+
+                    <!-- Quality Button -->
+                    <button class="custom-btn" id="qualityBtn">
+                        <span class="icon-quality">HD</span>
+                    </button>
+
+                    <!-- Fullscreen Button -->
+                    <button class="custom-btn" id="fullscreenBtn">
+                        <span class="icon-fullscreen"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Custom context menu -->
+        <div class="context-menu" id="contextMenu">
+            <div class="context-menu-item" onclick="togglePlayPause()">Play/Pause</div>
+            <div class="context-menu-item" onclick="toggleMute()">Mute/Unmute</div>
+            <div class="context-menu-item" onclick="toggleFullscreen()">Fullscreen</div>
+            <div class="context-menu-item" onclick="showSubtitleSettings()">Subtitle Settings</div>
+            <div class="context-menu-item" onclick="copyVideoUrl()">Copy URL</div>
+        </div>
+    </div>
+
+    <!-- Video.js JavaScript -->
+    <script src="https://vjs.zencdn.net/8.6.1/video.js"></script>
+    <!-- HLS support -->
+    <script src="https://cdn.jsdelivr.net/npm/@videojs/http-streaming@3.8.0/dist/videojs-http-streaming.min.js"></script>
+    <script>
+        // Configuration
+        const CONFIG = {
+            videoSource: './index.m3u8',
+            subtitleSource: 'index.vtt',
+            autoplay: false,
+            muted: false
+        };
+
+        let player;
+        let currentSubtitleSettings = {};
+        let subtitleData = [];
+        let subtitleInterval = null;
+        let controlBarTimeout = null;
+        let isDragging = false;
+        let lastMouseMoveTime = 0;
+        let mouseIdleTimeout = null;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize player
+            player = videojs('videoPlayer', {
+                fluid: true,
+                responsive: true,
+                playbackRates: [0.5, 1, 1.25, 1.5, 2],
+                controls: false,
+                preload: 'auto',
+                autoplay: CONFIG.autoplay,
+                muted: CONFIG.muted,
+                html5: {
+                    hls: {
+                        enableLowInitialPlaylist: true,
+                        smoothQualityChange: true,
+                        overrideNative: true
+                    }
+                }
+            });
+
+            // Player setup
+            player.ready(function() {
+                hideLoadingOverlay();
+                initializeCustomControls();
+                setupEventListeners();
+                setupKeyboardShortcuts();
+                
+                // Auto-enter fullscreen on mobile
+                if (isMobile()) {
+                    player.requestFullscreen();
+                }
+            });
+
+            // Set up HLS source
+            player.src({
+                src: CONFIG.videoSource,
+                type: 'application/vnd.apple.mpegurl'
+            });
+
+            // Load subtitles if available
+            if (CONFIG.subtitleSource) {
+                loadCustomSubtitles();
+            }
+        });
+
+        // Helper Functions
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${minutes}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function isMobile() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
+        function hideLoadingOverlay() {
+            document.getElementById('loadingOverlay').classList.add('hidden');
+        }
+
+        function showLoadingOverlay() {
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+        }
+
+        function showError(message) {
+            document.getElementById('errorText').textContent = message;
+            document.getElementById('errorMessage').style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        // Clean up on page unload
+        window.addEventListener('beforeunload', function() {
+            if (player) {
+                player.dispose();
+            }
+        });
+    </script>
+</body>
+</html>
