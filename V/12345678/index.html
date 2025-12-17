@@ -1,0 +1,2508 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced HLS Video Player</title>
+    <!-- Video.js CSS -->
+    <link href="https://vjs.zencdn.net/8.6.1/video-js.css" rel="stylesheet">
+
+    <!-- Font Awesome CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <!-- Custom styles for full-screen player -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .player-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: transparent;
+            cursor: auto;
+            transition: cursor 0.3s ease;
+        }
+
+        .player-container.hide-cursor {
+            cursor: none;
+        }
+
+        .video-js {
+            width: 100% !important;
+            height: 100% !important;
+            background: transparent !important;
+        }
+
+        /* Force hide Video.js overlays (but preserve subtitles) */
+        .video-js .vjs-poster,
+        .video-js .vjs-loading-spinner {
+            display: none !important;
+            opacity: 0 !important;
+        }
+
+        /* Target specific problematic overlay but preserve subtitle display */
+        .video-js div[style*="inset: 0px"][style*="margin: 1.5%"]:not(.vjs-text-track-display) {
+            display: none !important;
+        }
+
+        /* Ensure video is always visible */
+        .video-js video {
+            background: transparent !important;
+        }
+
+        /* Custom Subtitle Overlay */
+        .custom-subtitle-overlay {
+            position: absolute;
+            bottom: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1400;
+            pointer-events: none;
+            width: 90%;
+            text-align: center;
+            font-family: var(--subtitle-font-family, 'Arial, sans-serif');
+            font-size: var(--subtitle-font-size, 1.4em);
+            font-weight: var(--subtitle-font-weight, normal);
+            color: var(--subtitle-color, #ffffff);
+            text-shadow: var(--subtitle-shadow, 2px 2px 4px rgba(0, 0, 0, 0.8));
+            line-height: var(--subtitle-line-height, 1.4);
+        }
+
+        /* Fullscreen subtitle positioning */
+        .video-js.vjs-fullscreen .custom-subtitle-overlay,
+        .video-js:-webkit-full-screen .custom-subtitle-overlay,
+        .video-js:-moz-full-screen .custom-subtitle-overlay,
+        .video-js:-ms-fullscreen .custom-subtitle-overlay {
+            position: fixed !important;
+            bottom: 15% !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            z-index: 2147483646 !important;
+            /* Just below controls in fullscreen */
+            width: 90% !important;
+            font-size: calc(var(--subtitle-font-size, 1.4em) * 1.2) !important;
+            /* Slightly larger in fullscreen */
+        }
+
+        /* Ensure fullscreen container allows absolute positioning */
+        .video-js.vjs-fullscreen,
+        .video-js:-webkit-full-screen,
+        .video-js:-moz-full-screen,
+        .video-js:-ms-fullscreen {
+            position: relative !important;
+        }
+
+        .custom-subtitle-text {
+            background: var(--subtitle-background, rgba(0, 0, 0, 0.6));
+            padding: var(--subtitle-padding, 4px 8px);
+            border-radius: var(--subtitle-border-radius, 4px);
+            display: inline-block;
+            margin: 2px;
+            max-width: 100%;
+            word-wrap: break-word;
+        }
+
+        /* Hide Video.js subtitle display to avoid conflicts with custom overlay */
+        .video-js .vjs-text-track-display {
+            display: none !important;
+        }
+
+        /* Ensure caption menu button is enabled */
+        .video-js .vjs-subtitles-button,
+        .video-js .vjs-captions-button {
+            display: block !important;
+        }
+
+        /* Hide Video.js text track settings dialog */
+        .video-js .vjs-texttrack-settings,
+        .vjs-modal-dialog.vjs-texttrack-settings {
+            display: none !important;
+        }
+
+        /* Hide default Video.js control bar */
+        .video-js .vjs-control-bar {
+            display: none !important;
+        }
+
+        /* Custom Modern Control Bar */
+        .custom-control-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.7) 70%, transparent 100%);
+            padding: 15px 20px 20px 20px;
+            z-index: 1500;
+            transition: all 0.3s ease;
+            transform: translateY(100%);
+            opacity: 0;
+        }
+
+        .custom-control-bar.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        /* Fullscreen control bar positioning */
+        .video-js.vjs-fullscreen .custom-control-bar,
+        .video-js:-webkit-full-screen .custom-control-bar,
+        .video-js:-moz-full-screen .custom-control-bar,
+        .video-js:-ms-fullscreen .custom-control-bar {
+            position: fixed !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            z-index: 2147483647 !important;
+            /* Maximum z-index for fullscreen */
+            width: 100% !important;
+        }
+
+        /* Ensure fullscreen container allows proper positioning */
+        .video-js.vjs-fullscreen,
+        .video-js:-webkit-full-screen,
+        .video-js:-moz-full-screen,
+        .video-js:-ms-fullscreen {
+            position: relative !important;
+        }
+
+        .custom-progress-container {
+            margin-bottom: 15px;
+            position: relative;
+        }
+
+        .custom-progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .custom-progress-container:hover .custom-progress-bar {
+            height: 8px;
+            margin-top: -1px;
+        }
+
+        .custom-progress-container:hover .custom-progress-played {
+            box-shadow: 0 0 12px rgba(243, 203, 131, 0.6);
+        }
+
+        .custom-progress-container:hover .custom-progress-handle {
+            transform: translateY(-50%) scale(1.2);
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .custom-progress-buffer {
+            height: 100%;
+            background: rgba(128, 69, 21, 0.6);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        .custom-progress-played {
+            height: 100%;
+            background: #f3cb83;
+            border-radius: 3px;
+            position: absolute;
+            top: 0;
+            left: 0;
+            transition: width 0.1s ease;
+            z-index: 2;
+            box-shadow: 0 0 8px rgba(243, 203, 131, 0.4);
+        }
+
+        .custom-progress-handle {
+            position: absolute;
+            right: -8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 16px;
+            height: 16px;
+            background: #fff;
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            z-index: 3;
+        }
+
+        .custom-progress-handle:hover {
+            transform: translateY(-50%) scale(1.2);
+        }
+
+        .custom-time-tooltip {
+            position: absolute;
+            bottom: 25px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            z-index: 1600;
+        }
+
+        .custom-controls {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+        }
+
+        .custom-controls-left,
+        .custom-controls-center,
+        .custom-controls-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .custom-controls-center {
+            flex: 1;
+            justify-content: center;
+        }
+
+        .custom-btn {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            font-variant-emoji: text;
+            text-rendering: optimizeLegibility;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .custom-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+
+        .custom-btn.active {
+            background: rgba(231, 76, 60, 0.3);
+            color: #e74c3c;
+        }
+
+        .custom-play-btn {
+            width: 60px;
+            height: 60px;
+            background: transparent;
+            border-radius: 50%;
+            font-size: 18px;
+        }
+
+        .custom-play-btn:hover {
+            background: transparent;
+            transform: scale(1.05);
+        }
+
+        /* Ensure play button stays the same size in fullscreen */
+        .video-js.vjs-fullscreen .custom-play-btn,
+        .video-js:-webkit-full-screen .custom-play-btn,
+        .video-js:-moz-full-screen .custom-play-btn,
+        .video-js:-ms-fullscreen .custom-play-btn {
+            width: 60px !important;
+            height: 60px !important;
+            font-size: 18px !important;
+        }
+
+        .custom-time-display {
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            min-width: 80px;
+            text-align: center;
+        }
+
+        .custom-volume-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .custom-volume-slider {
+            width: 80px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 2px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .custom-volume-filled {
+            height: 100%;
+            background: #f3cb83;
+            border-radius: 2px;
+            transition: width 0.2s ease;
+        }
+
+        .custom-volume-handle {
+            position: absolute;
+            top: 50%;
+            left: 0%;
+            transform: translateY(-50%) translateX(-50%);
+            width: 12px;
+            height: 12px;
+            background: #ffffff;
+            border-radius: 50%;
+            cursor: pointer;
+            opacity: 1;
+            transition: opacity 0.2s ease, left 0.1s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            z-index: 10;
+        }
+
+        .custom-volume-slider:hover .custom-volume-handle {
+            opacity: 1;
+        }
+
+        .custom-dropdown {
+            position: relative;
+        }
+
+        .custom-dropdown-menu {
+            position: absolute;
+            bottom: 45px;
+            right: 0;
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 8px;
+            padding: 8px 0;
+            min-width: 120px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(10px);
+            transition: all 0.3s ease;
+            z-index: 1700;
+        }
+
+        .custom-dropdown.active .custom-dropdown-menu {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .custom-dropdown-item {
+            padding: 8px 16px;
+            color: white;
+            cursor: pointer;
+            transition: background 0.2s ease;
+            font-size: 14px;
+        }
+
+        .custom-dropdown-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .custom-dropdown-item.active {
+            background: rgba(231, 76, 60, 0.3);
+            color: #e74c3c;
+        }
+
+        /* Icons using CSS - Using simple symbols that won't render as emojis */
+        .icon-play::before {
+            content: '▶';
+            font-family: Arial, sans-serif;
+            font-style: normal;
+            font-size: 18px;
+        }
+
+        .icon-pause::before {
+            content: '❚❚';
+            font-family: Arial, sans-serif;
+            font-style: normal;
+            letter-spacing: 1px;
+            font-size: 18px;
+        }
+
+        .icon-volume::before {
+            content: '\f028';
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            font-size: 16px;
+        }
+
+        .icon-volume-mute::before {
+            content: '\f6a9';
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            font-size: 16px;
+        }
+
+        .icon-quality {
+            font-family: Arial, sans-serif;
+            font-style: normal;
+            font-size: 11px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+        }
+
+        .icon-fullscreen::before {
+            content: '\f065';
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            font-size: 14px;
+        }
+
+        .icon-cc::before {
+            content: 'CC';
+            font-size: 12px;
+            font-weight: bold;
+            font-family: Arial, sans-serif;
+            font-style: normal;
+        }
+
+        .icon-audio::before {
+            content: '\f144';
+            content: 'AU';
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+            font-size: 11px;
+        }
+
+        .icon-speed::before {
+            content: '';
+            font-family: Arial, sans-serif;
+            font-style: normal;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .icon-speed {
+            font-family: Arial, sans-serif;
+            font-style: normal;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .custom-control-bar {
+                padding: 10px 15px 15px 15px;
+                bottom: 50px;
+            }
+
+            .custom-controls {
+                gap: 10px;
+            }
+
+            /* Hide volume container on mobile by default */
+            .custom-volume-container {
+                display: none;
+            }
+
+            .custom-volume-slider {
+                width: 60px;
+            }
+
+            .custom-time-display {
+                font-size: 12px;
+                min-width: 60px;
+            }
+        }
+
+        /* Show volume container in fullscreen on mobile */
+        @media (max-width: 768px) {
+
+            .video-js.vjs-fullscreen .custom-volume-container,
+            .video-js:-webkit-full-screen .custom-volume-container,
+            .video-js:-moz-full-screen .custom-volume-container,
+            .video-js:-ms-fullscreen .custom-volume-container {
+                display: flex !important;
+                gap: 6px;
+            }
+        }
+
+        .video-js .vjs-big-play-button {
+            font-size: 2.5em;
+            line-height: 2em;
+            height: 2em;
+            width: 2em;
+            border-radius: 50%;
+            background-color: #5f2d0c !important;
+            border: none !important;
+            margin-left: -1em;
+            margin-top: -1em;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .video-js .vjs-big-play-button:hover {
+            background-color: #804515 !important;
+            transform: scale(1.1);
+            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Additional specificity to override Video.js defaults */
+        .video-js .vjs-big-play-button .vjs-icon-placeholder:before {
+            color: white !important;
+        }
+
+        .video-js .vjs-control-bar {
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, transparent 100%);
+            color: #fff;
+        }
+
+        .video-js .vjs-progress-control {
+            height: 6px;
+        }
+
+        .video-js .vjs-play-progress {
+            background: #e74c3c;
+        }
+
+        .video-js .vjs-volume-bar {
+            background: rgba(115, 133, 159, 0.5);
+        }
+
+        .video-js .vjs-volume-level {
+            background: #e74c3c;
+        }
+
+        /* Loading indicator */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            transition: opacity 0.3s ease;
+        }
+
+        .loading-overlay.hidden {
+            display: none;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid #f3cb83;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Error message */
+        .error-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            text-align: center;
+            z-index: 1001;
+            background: rgba(231, 76, 60, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+        }
+
+        /* Quality selector */
+        .video-js .vjs-quality-selector .vjs-menu-content {
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 5px;
+        }
+
+        /* Subtitle styles */
+        .video-js .vjs-text-track-display {
+            font-size: var(--subtitle-font-size, 1.4em);
+            font-family: var(--subtitle-font-family, 'Arial, sans-serif');
+            color: var(--subtitle-color, #ffffff);
+            text-shadow: var(--subtitle-shadow, 2px 2px 4px rgba(0, 0, 0, 0.8));
+            font-weight: var(--subtitle-weight, normal);
+            line-height: var(--subtitle-line-height, 1.4);
+        }
+
+        .video-js .vjs-text-track-display div {
+            background: var(--subtitle-background, rgba(0, 0, 0, 0.6));
+            padding: var(--subtitle-padding, 4px 8px);
+            border-radius: var(--subtitle-border-radius, 4px);
+            border: var(--subtitle-border, none);
+            margin-bottom: var(--subtitle-margin, 2px);
+            display: inline-block;
+        }
+
+        /* Subtitle Settings Panel */
+        .subtitle-settings {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            border: 1px solid #333;
+            border-radius: 10px;
+            width: 400px;
+            max-width: 90vw;
+            max-height: 85vh;
+            z-index: 2147483647;
+            display: none;
+            color: #fff;
+            font-family: 'Segoe UI', sans-serif;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+            overflow: hidden;
+            flex-direction: column;
+        }
+
+        .subtitle-settings.show {
+            display: flex;
+        }
+
+        /* Ensure subtitle settings appear above everything in fullscreen */
+        .video-js.vjs-fullscreen .subtitle-settings,
+        .video-js:-webkit-full-screen .subtitle-settings,
+        .video-js:-moz-full-screen .subtitle-settings,
+        .video-js:-ms-fullscreen .subtitle-settings {
+            z-index: 2147483647 !important;
+            position: fixed !important;
+        }
+
+        .subtitle-settings h3 {
+            margin: 0;
+            padding: 20px 30px 15px 30px;
+            text-align: center;
+            color: #e74c3c;
+            font-size: 1.4em;
+            border-bottom: 1px solid #333;
+            flex-shrink: 0;
+        }
+
+        .settings-content {
+            padding: 20px 30px;
+            overflow-y: auto;
+            flex: 1;
+            scrollbar-width: thin;
+            scrollbar-color: #555 #222;
+        }
+
+        .settings-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .settings-content::-webkit-scrollbar-track {
+            background: #222;
+            border-radius: 3px;
+        }
+
+        .settings-content::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 3px;
+        }
+
+        .settings-content::-webkit-scrollbar-thumb:hover {
+            background: #666;
+        }
+
+        .setting-group {
+            margin-bottom: 18px;
+        }
+
+        .setting-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .setting-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: #ddd;
+            font-size: 14px;
+        }
+
+        .setting-group input,
+        .setting-group select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #555;
+            border-radius: 5px;
+            background: #333;
+            color: #fff;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .setting-group input[type="range"] {
+            width: 100%;
+            margin: 5px 0;
+            padding: 0;
+            height: 6px;
+            background: #333;
+            border-radius: 3px;
+            appearance: none;
+        }
+
+        .setting-group input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #e74c3c;
+            cursor: pointer;
+            border: 2px solid #fff;
+        }
+
+        .setting-group input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #e74c3c;
+            cursor: pointer;
+            border: 2px solid #fff;
+        }
+
+        .setting-group input[type="color"] {
+            height: 40px;
+            padding: 0;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        .color-preview {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .color-preview span {
+            font-size: 12px;
+            color: #aaa;
+            font-family: monospace;
+        }
+
+        .settings-buttons {
+            display: flex;
+            gap: 8px;
+            padding: 15px 30px 20px 30px;
+            border-top: 1px solid #333;
+            flex-shrink: 0;
+        }
+
+        .settings-btn {
+            flex: 1;
+            padding: 10px 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .settings-btn.primary {
+            background: #e74c3c;
+            color: #fff;
+        }
+
+        .settings-btn.primary:hover {
+            background: #c0392b;
+        }
+
+        .settings-btn.secondary {
+            background: #555;
+            color: #fff;
+        }
+
+        .settings-btn.secondary:hover {
+            background: #666;
+        }
+
+        .settings-btn.reset {
+            background: #f39c12;
+            color: #fff;
+        }
+
+        .settings-btn.reset:hover {
+            background: #e67e22;
+        }
+
+        /* Preview text */
+        .subtitle-preview {
+            background: var(--subtitle-background, rgba(0, 0, 0, 0.6));
+            color: var(--subtitle-color, #ffffff);
+            font-family: var(--subtitle-font-family, 'Arial, sans-serif');
+            font-size: var(--subtitle-font-size, 1.4em);
+            font-weight: var(--subtitle-weight, normal);
+            text-shadow: var(--subtitle-shadow, 2px 2px 4px rgba(0, 0, 0, 0.8));
+            padding: var(--subtitle-padding, 4px 8px);
+            border-radius: var(--subtitle-border-radius, 4px);
+            border: var(--subtitle-border, none);
+            text-align: center;
+            margin: 10px 0;
+            display: inline-block;
+            width: 100%;
+            box-sizing: border-box;
+            font-size: 0.9em;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .subtitle-settings {
+                width: 95vw;
+                max-height: 90vh;
+            }
+
+            .subtitle-settings h3 {
+                padding: 15px 20px 10px 20px;
+                font-size: 1.2em;
+            }
+
+            .settings-content {
+                padding: 15px 20px;
+            }
+
+            .settings-buttons {
+                padding: 10px 20px 15px 20px;
+                gap: 6px;
+            }
+
+            .settings-btn {
+                padding: 8px 10px;
+                font-size: 12px;
+            }
+
+            .setting-group {
+                margin-bottom: 15px;
+            }
+
+            .setting-group label {
+                font-size: 13px;
+            }
+
+            .setting-group input,
+            .setting-group select {
+                font-size: 13px;
+                padding: 6px 10px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .subtitle-settings {
+                width: 98vw;
+                max-height: 95vh;
+            }
+
+            .subtitle-settings h3 {
+                font-size: 1.1em;
+            }
+
+            .settings-content {
+                padding: 10px 15px;
+            }
+
+            .settings-buttons {
+                padding: 8px 15px 12px 15px;
+                flex-direction: column;
+            }
+
+            .settings-btn {
+                margin-bottom: 5px;
+            }
+
+            .settings-btn:last-child {
+                margin-bottom: 0;
+            }
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .video-js .vjs-big-play-button {
+                font-size: 2em;
+            }
+
+            .video-js .vjs-text-track-display {
+                font-size: 1.2em;
+            }
+        }
+
+        /* Custom context menu */
+        .context-menu {
+            position: fixed;
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid #333;
+            border-radius: 5px;
+            padding: 8px 0;
+            min-width: 150px;
+            z-index: 2147483647;
+            display: none;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        /* Ensure context menu appears above everything in fullscreen */
+        .video-js.vjs-fullscreen .context-menu,
+        .video-js:-webkit-full-screen .context-menu,
+        .video-js:-moz-full-screen .context-menu,
+        .video-js:-ms-fullscreen .context-menu {
+            z-index: 2147483647 !important;
+            position: fixed !important;
+        }
+
+        .context-menu-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .context-menu-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="player-container"> <!-- Loading overlay -->
+        <div class="loading-overlay hidden" id="loadingOverlay">
+            <div class="spinner"></div>
+        </div>
+
+        <!-- Error message -->
+        <div class="error-message" id="errorMessage">
+            <h3>Playback Error</h3>
+            <p id="errorText">Unable to load video. Please try again.</p>
+            <button onclick="retryLoad()"
+                style="margin-top: 10px; padding: 8px 16px; background: #fff; border: none; border-radius: 5px; cursor: pointer;">Retry</button>
+        </div>
+
+        <!-- Video player -->
+        <video id="videoPlayer" class="video-js vjs-default-skin" controls preload="auto" data-setup='{}'>
+            <p class="vjs-no-js">
+                To view this video please enable JavaScript, and consider upgrading to a web browser that
+                <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>.
+            </p>
+        </video> <!-- Custom Subtitle Overlay -->
+        <div class="custom-subtitle-overlay" id="customSubtitles">
+            <div class="custom-subtitle-text" id="subtitleText" style="display: none;"></div>
+        </div>
+
+        <!-- Custom Modern Control Bar -->
+        <div class="custom-control-bar" id="customControlBar">
+            <!-- Progress Bar -->
+            <div class="custom-progress-container">
+                <div class="custom-progress-bar" id="progressBar">
+                    <div class="custom-progress-buffer" id="progressBuffer"></div>
+                    <div class="custom-progress-played" id="progressPlayed">
+                        <div class="custom-progress-handle" id="progressHandle"></div>
+                    </div>
+                </div>
+                <div class="custom-time-tooltip" id="timeTooltip">00:00</div>
+            </div>
+
+            <!-- Controls -->
+            <div class="custom-controls">
+                <!-- Left Controls -->
+                <div class="custom-controls-left">
+                    <button class="custom-btn custom-play-btn" id="playBtn">
+                        <span class="icon-play"></span>
+                    </button>
+                    <div class="custom-volume-container">
+                        <button class="custom-btn" id="volumeBtn">
+                            <span class="icon-volume"></span>
+                        </button>
+                        <div class="custom-volume-slider" id="volumeSlider">
+                            <div class="custom-volume-filled" id="volumeFilled"></div>
+                            <div class="custom-volume-handle" id="volumeHandle"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Center Controls -->
+                <div class="custom-controls-center">
+                    <div class="custom-time-display" id="timeDisplay">
+                        <span id="currentTime">0:00</span> / <span id="duration">0:00</span>
+                    </div>
+                </div>
+
+                <!-- Right Controls -->
+                <div class="custom-controls-right"> <!-- Caption Button -->
+                    <div class="custom-dropdown" id="captionDropdown">
+                        <button class="custom-btn" id="captionBtn">
+                            <span class="icon-cc"></span>
+                        </button>
+                        <div class="custom-dropdown-menu">
+                            <div class="custom-dropdown-item" data-track="off">Off</div>
+                            <div class="custom-dropdown-item active" data-track="ml">ML</div>
+                            <div class="custom-dropdown-item" data-track="settings">Caption Settings</div>
+                        </div>
+                    </div>
+
+                    <!-- Audio Track Button -->
+                    <div class="custom-dropdown" id="audioDropdown">
+                        <button class="custom-btn" id="audioBtn">
+                            <span class="icon-audio"></span>
+                        </button>
+                        <div class="custom-dropdown-menu">
+                            <div class="custom-dropdown-item active" data-audio="default">Default</div>
+                        </div>
+                    </div>
+
+                    <!-- Speed Button -->
+                    <div class="custom-dropdown" id="speedDropdown">
+                        <button class="custom-btn" id="speedBtn">
+                            <span class="icon-speed">1x</span>
+                        </button>
+                        <div class="custom-dropdown-menu">
+                            <div class="custom-dropdown-item" data-speed="0.5">0.5x</div>
+                            <div class="custom-dropdown-item" data-speed="0.75">0.75x</div>
+                            <div class="custom-dropdown-item active" data-speed="1">1x</div>
+                            <div class="custom-dropdown-item" data-speed="1.25">1.25x</div>
+                            <div class="custom-dropdown-item" data-speed="1.5">1.5x</div>
+                            <div class="custom-dropdown-item" data-speed="2">2x</div>
+                        </div>
+                    </div> <!-- Quality Button -->
+                    <button class="custom-btn" id="qualityBtn">
+                        <span class="icon-quality">HD</span>
+                    </button>
+
+                    <!-- Fullscreen Button -->
+                    <button class="custom-btn" id="fullscreenBtn">
+                        <span class="icon-fullscreen"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Custom context menu -->
+        <div class="context-menu" id="contextMenu">
+            <div class="context-menu-item" onclick="togglePlayPause()">Play/Pause</div>
+            <div class="context-menu-item" onclick="toggleMute()">Mute/Unmute</div>
+            <div class="context-menu-item" onclick="toggleFullscreen()">Fullscreen</div>
+            <div class="context-menu-item" onclick="showSubtitleSettings()">Subtitle Settings</div>
+            <div class="context-menu-item" onclick="copyVideoUrl()">Copy URL</div>
+        </div> <!-- Subtitle Settings Panel -->
+        <div class="subtitle-settings" id="subtitleSettings">
+            <h3>Subtitle Settings</h3>
+
+            <div class="settings-content">
+                <div class="setting-group">
+                    <label for="fontFamily">Font Family:</label>
+                    <select id="fontFamily" onchange="updateSubtitleSettings()">
+                        <option value="Arial, sans-serif">Arial</option>
+                        <option value="'Times New Roman', serif">Times New Roman</option>
+                        <option value="'Courier New', monospace">Courier New</option>
+                        <option value="'Comic Sans MS', cursive">Comic Sans MS</option>
+                        <option value="'Impact', sans-serif">Impact</option>
+                        <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
+                        <option value="'Verdana', sans-serif">Verdana</option>
+                        <option value="'Georgia', serif">Georgia</option>
+                        <option value="'Palatino', serif">Palatino</option>
+                        <option value="'Helvetica', sans-serif">Helvetica</option>
+                    </select>
+                </div>
+
+                <div class="setting-group">
+                    <label for="fontSize">Font Size: <span id="fontSizeValue">1.4em</span></label>
+                    <input type="range" id="fontSize" min="0.8" max="3.0" step="0.1" value="1.4"
+                        onchange="updateSubtitleSettings()">
+                </div>
+
+                <div class="setting-group">
+                    <label for="fontWeight">Font Weight:</label>
+                    <select id="fontWeight" onchange="updateSubtitleSettings()">
+                        <option value="normal">Normal</option>
+                        <option value="bold">Bold</option>
+                        <option value="100">Thin</option>
+                        <option value="300">Light</option>
+                        <option value="500">Medium</option>
+                        <option value="700">Bold</option>
+                        <option value="900">Black</option>
+                    </select>
+                </div>
+
+                <div class="setting-group">
+                    <label for="textColor">Text Color:</label>
+                    <div class="color-preview">
+                        <input type="color" id="textColor" value="#ffffff" onchange="updateSubtitleSettings()">
+                        <span id="textColorValue">#ffffff</span>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <label for="backgroundColor">Background Color:</label>
+                    <div class="color-preview">
+                        <input type="color" id="backgroundColor" value="#000000" onchange="updateSubtitleSettings()">
+                        <span id="backgroundColorValue">#000000</span>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <label for="backgroundOpacity">Background Opacity: <span
+                            id="backgroundOpacityValue">60%</span></label>
+                    <input type="range" id="backgroundOpacity" min="0" max="100" step="5" value="60"
+                        onchange="updateSubtitleSettings()">
+                </div>
+
+                <div class="setting-group">
+                    <label for="textShadow">Text Shadow:</label>
+                    <select id="textShadow" onchange="updateSubtitleSettings()">
+                        <option value="none">None</option>
+                        <option value="1px 1px 2px rgba(0, 0, 0, 0.8)" selected>Light</option>
+                        <option value="2px 2px 4px rgba(0, 0, 0, 0.8)">Medium</option>
+                        <option value="3px 3px 6px rgba(0, 0, 0, 0.9)">Heavy</option>
+                        <option value="0 0 8px rgba(0, 0, 0, 1)">Glow</option>
+                    </select>
+                </div>
+
+                <div class="setting-group">
+                    <label for="borderRadius">Border Radius: <span id="borderRadiusValue">4px</span></label>
+                    <input type="range" id="borderRadius" min="0" max="20" step="1" value="4"
+                        onchange="updateSubtitleSettings()">
+                </div>
+
+                <div class="setting-group">
+                    <label for="padding">Padding: <span id="paddingValue">4px 8px</span></label>
+                    <input type="range" id="padding" min="0" max="20" step="1" value="4"
+                        onchange="updateSubtitleSettings()">
+                </div>
+
+                <div class="setting-group">
+                    <label for="lineHeight">Line Height: <span id="lineHeightValue">1.4</span></label>
+                    <input type="range" id="lineHeight" min="1.0" max="2.0" step="0.1" value="1.4"
+                        onchange="updateSubtitleSettings()">
+                </div>
+
+                <!-- Preview -->
+                <div class="setting-group">
+                    <label>Preview:</label>
+                    <div class="subtitle-preview" id="subtitlePreview">
+                        This is a sample subtitle text
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-buttons">
+                <button class="settings-btn reset" onclick="resetSubtitleSettings()">Reset</button>
+                <button class="settings-btn secondary" onclick="hideSubtitleSettings()">Cancel</button>
+                <button class="settings-btn primary" onclick="applyAndCloseSettings()">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Video.js JavaScript -->
+    <script src="https://vjs.zencdn.net/8.6.1/video.js"></script>
+    <!-- HLS support -->
+    <script
+        src="https://cdn.jsdelivr.net/npm/@videojs/http-streaming@3.8.0/dist/videojs-http-streaming.min.js"></script>
+
+    <script>        // Configuration
+        const CONFIG = {
+            videoSource: 'master.m3u8',
+            subtitleSource: 'sub_0.vtt',
+            autoplay: false,
+            muted: false
+        };
+
+        let player;
+
+        // Default subtitle settings
+        const defaultSubtitleSettings = {
+            fontFamily: 'Arial, sans-serif',
+            fontSize: '1.4em',
+            fontWeight: 'normal',
+            textColor: '#ffffff',
+            backgroundColor: '#000000',
+            backgroundOpacity: 60,
+            textShadow: '2px 2px 4px rgba(0, 0, 0, 0.8)',
+            borderRadius: '4px',
+            padding: '4px 8px',
+            lineHeight: '1.4'
+        };
+
+        let currentSubtitleSettings = { ...defaultSubtitleSettings };
+        // Custom subtitle system
+        let subtitleData = [];
+        let subtitleInterval = null; let controlBarTimeout = null;
+        let isDragging = false;
+        let lastMouseMoveTime = 0;
+        let mouseIdleTimeout = null;// Initialize the player when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function () {
+            // Force hide all overlays immediately
+            hideAllOverlays();
+            initializePlayer();
+            setupEventListeners();
+            loadSubtitleSettings();
+            initializeSubtitleSettingsPanel();
+            initializeCustomControls();
+        }); function hideAllOverlays() {
+            // Hide loading overlay
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+                loadingOverlay.style.display = 'none';
+                loadingOverlay.classList.add('hidden');
+                console.log('Loading overlay hidden');
+            }
+
+            // Hide error message
+            const errorMessage = document.getElementById('errorMessage');
+            if (errorMessage) {
+                errorMessage.style.display = 'none';
+                console.log('Error message hidden');
+            }
+
+            // Hide subtitle settings
+            const subtitleSettings = document.getElementById('subtitleSettings');
+            if (subtitleSettings) {
+                subtitleSettings.classList.remove('show');
+                console.log('Subtitle settings hidden');
+            }
+
+            // Remove Video.js poster/overlay elements
+            setTimeout(() => {
+                const videoContainer = document.querySelector('.video-js');
+                if (videoContainer) {
+                    // Remove only specific problematic overlays, NOT subtitle elements
+                    const overlays = videoContainer.querySelectorAll('div[style*="position: absolute"], div[style*="position:absolute"]');
+                    overlays.forEach(overlay => {
+                        const style = window.getComputedStyle(overlay);
+                        // Check if it's NOT a subtitle element
+                        if (!overlay.classList.contains('vjs-text-track-cue') &&
+                            !overlay.classList.contains('vjs-text-track-display') &&
+                            !overlay.closest('.vjs-text-track-display') &&
+                            style.backgroundColor.includes('0, 0, 0') &&
+                            parseFloat(style.opacity) > 0.3) { // Only remove if opacity > 0.3 (not transparent)
+                            console.log('Removing Video.js overlay:', overlay);
+                            overlay.style.display = 'none';
+                            overlay.remove();
+                        }
+                    });
+
+                    // Also check for poster image overlays (but not subtitles)
+                    const posterElements = videoContainer.querySelectorAll('.vjs-poster, .vjs-loading-spinner');
+                    posterElements.forEach(el => {
+                        el.style.display = 'none';
+                        console.log('Hiding poster/loading element:', el);
+                    });
+                }
+            }, 100);
+        }
+
+        function initializePlayer() {
+            // Initialize Video.js player
+            player = videojs('videoPlayer', {
+                fluid: true,
+                responsive: true,
+                playbackRates: [0.5, 1, 1.25, 1.5, 2],
+                controls: true,
+                preload: 'auto',
+                autoplay: CONFIG.autoplay,
+                muted: CONFIG.muted,
+                html5: {
+                    hls: {
+                        enableLowInitialPlaylist: true,
+                        smoothQualityChange: true,
+                        overrideNative: true
+                    }
+                }
+            });            // Set video source
+            player.src({
+                src: CONFIG.videoSource,
+                type: 'application/vnd.apple.mpegurl'
+            });
+
+            // Player event listeners
+            player.ready(function () {
+                console.log('Player is ready');
+                hideLoading();
+                hideAllOverlays(); // Double-check all overlays are hidden
+
+                // Auto-enter fullscreen on mobile
+                if (isMobile()) {
+                    player.requestFullscreen();
+                }
+            });
+
+            player.on('loadstart', function () {
+                showLoading();
+            }); player.on('canplay', function () {
+                hideLoading();
+                hideAllOverlays(); // Remove overlays when video can play
+                console.log('Video can start playing');
+            });
+
+            player.on('error', function (e) {
+                console.error('Player error:', e);
+                showError('Failed to load video stream. Please check your connection and try again.');
+            }); player.on('play', function () {
+                hideAllOverlays(); // Remove overlays when video starts playing
+                startSubtitleDisplay(); // Resume custom subtitle display
+                console.log('Video started playing');
+
+                // Start auto-hide controls after a delay when playing
+                setTimeout(() => {
+                    hideControlsDelayed();
+                }, 1000);
+            }); player.on('pause', function () {
+                if (subtitleInterval) {
+                    clearInterval(subtitleInterval);
+                }
+                // Clear any pending hide timeouts and show controls when paused
+                if (controlBarTimeout) {
+                    clearTimeout(controlBarTimeout);
+                    controlBarTimeout = null;
+                }
+                if (mouseIdleTimeout) {
+                    clearTimeout(mouseIdleTimeout);
+                    mouseIdleTimeout = null;
+                }
+                showControls();
+                console.log('Video paused');
+            });
+
+            // Handle fullscreen changes
+            player.on('fullscreenchange', function () {
+                handleFullscreenSubtitles();
+            });            // Also listen for native fullscreen events
+            document.addEventListener('fullscreenchange', handleFullscreenSubtitles);
+            document.addEventListener('webkitfullscreenchange', handleFullscreenSubtitles);
+            document.addEventListener('mozfullscreenchange', handleFullscreenSubtitles);
+            document.addEventListener('msfullscreenchange', handleFullscreenSubtitles);
+
+            // Override Video.js caption settings to use our custom panel
+            player.ready(() => {
+                setTimeout(() => {
+                    overrideCaptionSettings();
+                }, 500);
+            }); player.on('ended', function () {
+                console.log('Video ended');
+                // You could add replay functionality here
+            });
+
+            // Debug subtitle loading
+            player.on('texttrackchange', function () {
+                console.log('Text track changed');
+            });
+
+            player.on('loadeddata', function () {
+                console.log('Video data loaded, checking subtitles...');
+                const tracks = player.textTracks();
+                console.log('Available text tracks:', tracks.length);
+                for (let i = 0; i < tracks.length; i++) {
+                    console.log(`Track ${i}:`, tracks[i].label, tracks[i].language, tracks[i].mode);
+                }
+            });            // Add subtitle support using both Video.js (for menu) and custom overlay (for display)
+            addSubtitleSupport();
+            loadCustomSubtitles();
+
+            // Keyboard shortcuts
+            setupKeyboardShortcuts();
+        }
+
+        function loadCustomSubtitles() {
+            // Load and parse the VTT file
+            fetch(CONFIG.subtitleSource)
+                .then(response => response.text())
+                .then(vttText => {
+                    subtitleData = parseVTT(vttText);
+                    console.log('Custom subtitles loaded:', subtitleData.length, 'cues');
+                    startSubtitleDisplay();
+                })
+                .catch(error => {
+                    console.error('Failed to load custom subtitles:', error);
+                });
+        }
+
+        function parseVTT(vttText) {
+            const lines = vttText.split('\n');
+            const cues = [];
+            let currentCue = null;
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+
+                // Skip empty lines and WEBVTT header
+                if (!line || line === 'WEBVTT') continue;
+
+                // Check if line contains time stamps
+                if (line.includes(' --> ')) {
+                    // Save previous cue if exists
+                    if (currentCue) {
+                        cues.push(currentCue);
+                    }
+
+                    // Parse time stamps
+                    const [startTime, endTime] = line.split(' --> ');
+                    currentCue = {
+                        start: parseTimeStamp(startTime),
+                        end: parseTimeStamp(endTime),
+                        text: ''
+                    };
+                } else if (currentCue && line) {
+                    // Add text to current cue
+                    if (currentCue.text) currentCue.text += '\n';
+                    currentCue.text += line;
+                }
+            }
+
+            // Add the last cue
+            if (currentCue) {
+                cues.push(currentCue);
+            }
+
+            return cues;
+        }
+
+        function parseTimeStamp(timeStr) {
+            // Parse format: HH:MM:SS.mmm or MM:SS.mmm
+            const parts = timeStr.split(':');
+            let hours = 0, minutes = 0, seconds = 0;
+
+            if (parts.length === 3) {
+                hours = parseInt(parts[0]);
+                minutes = parseInt(parts[1]);
+                seconds = parseFloat(parts[2]);
+            } else if (parts.length === 2) {
+                minutes = parseInt(parts[0]);
+                seconds = parseFloat(parts[1]);
+            }
+
+            return hours * 3600 + minutes * 60 + seconds;
+        }
+
+        function startSubtitleDisplay() {
+            // Clear any existing interval
+            if (subtitleInterval) {
+                clearInterval(subtitleInterval);
+            }
+
+            // Update subtitles every 100ms for smooth display
+            subtitleInterval = setInterval(updateSubtitleDisplay, 100);
+        }
+
+        function updateSubtitleDisplay() {
+            if (!player || player.paused()) return;
+
+            // Check if subtitles are enabled via Video.js caption menu
+            const tracks = player.textTracks();
+            let subtitlesEnabled = false;
+
+            for (let i = 0; i < tracks.length; i++) {
+                if (tracks[i].language === 'ml' && tracks[i].mode === 'showing') {
+                    subtitlesEnabled = true;
+                    break;
+                }
+            }
+
+            const currentTime = player.currentTime();
+            const subtitleElement = document.getElementById('subtitleText');
+
+            if (!subtitlesEnabled) {
+                // Hide custom subtitles if disabled via caption menu
+                subtitleElement.style.display = 'none';
+                return;
+            }
+
+            // Find current subtitle cue
+            const currentCue = subtitleData.find(cue =>
+                currentTime >= cue.start && currentTime <= cue.end
+            );
+
+            if (currentCue) {
+                // Clean up HTML tags and show subtitle
+                let cleanText = currentCue.text
+                    .replace(/<[^>]*>/g, '') // Remove HTML tags
+                    .replace(/&nbsp;/g, ' ') // Replace &nbsp; with space
+                    .trim();
+
+                subtitleElement.textContent = cleanText;
+                subtitleElement.style.display = 'inline-block';
+            } else {
+                // Hide subtitle when no cue is active
+                subtitleElement.style.display = 'none';
+            }
+        } function handleFullscreenSubtitles() {
+            const subtitleOverlay = document.getElementById('customSubtitles');
+            const controlBar = document.getElementById('customControlBar');
+            const subtitleSettings = document.getElementById('subtitleSettings');
+            const contextMenu = document.getElementById('contextMenu');
+            const videoContainer = document.querySelector('.video-js');
+
+            // Check if we're in fullscreen
+            const isFullscreen = document.fullscreenElement ||
+                document.webkitFullscreenElement ||
+                document.mozFullScreenElement ||
+                document.msFullscreenElement ||
+                player.isFullscreen();
+
+            if (isFullscreen) {
+                console.log('Entering fullscreen - adjusting subtitles, controls, settings, and context menu');
+                // Move all UI elements to fullscreen container
+                const fullscreenElement = document.fullscreenElement ||
+                    document.webkitFullscreenElement ||
+                    document.mozFullScreenElement ||
+                    document.msFullscreenElement ||
+                    videoContainer;
+
+                if (fullscreenElement) {
+                    if (subtitleOverlay) {
+                        fullscreenElement.appendChild(subtitleOverlay);
+                    }
+                    if (controlBar) {
+                        fullscreenElement.appendChild(controlBar);
+                    }
+                    if (subtitleSettings) {
+                        fullscreenElement.appendChild(subtitleSettings);
+                    }
+                    if (contextMenu) {
+                        fullscreenElement.appendChild(contextMenu);
+                    }
+                }
+
+                // Force show controls briefly in fullscreen
+                showControls();
+
+            } else {
+                console.log('Exiting fullscreen - restoring all UI elements');
+                // Move all elements back to original container
+                const playerContainer = document.querySelector('.player-container');
+                if (playerContainer) {
+                    if (subtitleOverlay) {
+                        playerContainer.appendChild(subtitleOverlay);
+                    }
+                    if (controlBar) {
+                        playerContainer.appendChild(controlBar);
+                    }
+                    if (subtitleSettings) {
+                        playerContainer.appendChild(subtitleSettings);
+                    }
+                    if (contextMenu) {
+                        playerContainer.appendChild(contextMenu);
+                    }
+                }
+            }
+        }
+
+        function overrideCaptionSettings() {
+            // Find all caption settings buttons and override their click events
+            const captionButtons = document.querySelectorAll('.vjs-texttrack-settings, .vjs-captions-button .vjs-menu-button, [title*="settings"], [aria-label*="settings"]');
+
+            captionButtons.forEach(button => {
+                // Check if this is a settings button
+                if (button.textContent.toLowerCase().includes('settings') ||
+                    button.title.toLowerCase().includes('settings') ||
+                    button.getAttribute('aria-label')?.toLowerCase().includes('settings')) {
+
+                    button.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        showSubtitleSettings();
+                        console.log('Opening custom subtitle settings from Video.js menu');
+                    });
+                }
+            });
+
+            // Also override the texttrack settings modal if it exists
+            const observer = new MutationObserver(function (mutations) {
+                mutations.forEach(function (mutation) {
+                    mutation.addedNodes.forEach(function (node) {
+                        if (node.nodeType === 1) { // Element node
+                            // Check for Video.js caption settings dialog
+                            if (node.classList?.contains('vjs-modal-dialog') ||
+                                node.querySelector?.('.vjs-texttrack-settings')) {
+
+                                // Hide the Video.js dialog
+                                node.style.display = 'none';
+
+                                // Show our custom settings
+                                showSubtitleSettings();
+                                console.log('Intercepted Video.js caption settings dialog');
+                            }
+                        }
+                    });
+                });
+            });
+
+            // Start observing for dynamically added Video.js dialogs
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+
+            // Override any existing caption settings menu items
+            const menuItems = document.querySelectorAll('.vjs-menu-item');
+            menuItems.forEach(item => {
+                if (item.textContent.toLowerCase().includes('settings') ||
+                    item.textContent.toLowerCase().includes('caption settings')) {
+
+                    item.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        showSubtitleSettings();
+                        console.log('Opening custom subtitle settings from menu item');
+                    });
+                }
+            });
+        }
+
+        function addSubtitleSupport() {
+            // Add Video.js text track for caption menu functionality
+            const textTrack = player.addRemoteTextTrack({
+                kind: 'subtitles',
+                label: 'ML',
+                language: 'ml',
+                src: CONFIG.subtitleSource,
+                default: true
+            }, false);
+
+            // Set track mode to showing for menu functionality
+            player.ready(() => {
+                const tracks = player.textTracks();
+                for (let i = 0; i < tracks.length; i++) {
+                    if (tracks[i].language === 'ml') {
+                        tracks[i].mode = 'showing';
+                        break;
+                    }
+                }
+            });
+
+            console.log('Video.js text tracks enabled for caption menu');
+        }
+
+        function setupEventListeners() {
+            // Custom context menu
+            const video = document.getElementById('videoPlayer');
+            const contextMenu = document.getElementById('contextMenu');
+
+            video.addEventListener('contextmenu', function (e) {
+                e.preventDefault();
+                showContextMenu(e.clientX, e.clientY);
+            }); document.addEventListener('click', function () {
+                hideContextMenu();
+            });
+
+            // Click outside to close subtitle settings
+            document.addEventListener('click', function (e) {
+                const subtitleSettings = document.getElementById('subtitleSettings');
+                if (subtitleSettings.classList.contains('show') &&
+                    !subtitleSettings.contains(e.target) &&
+                    !e.target.closest('.context-menu-item')) {
+                    hideSubtitleSettings();
+                }
+            });
+
+            // Resize handler
+            window.addEventListener('resize', function () {
+                if (player) {
+                    player.dimensions('100%', '100%');
+                }
+            });
+
+            // Prevent right-click on video (optional)
+            video.addEventListener('contextmenu', function (e) {
+                e.preventDefault();
+            });
+        }
+
+        function setupKeyboardShortcuts() {
+            document.addEventListener('keydown', function (e) {
+                // Don't interfere if user is typing in an input
+                if (e.target.tagName === 'INPUT') return;
+
+                switch (e.key) {
+                    case ' ':
+                        e.preventDefault();
+                        togglePlayPause();
+                        break;
+                    case 'f':
+                    case 'F':
+                        toggleFullscreen();
+                        break;
+                    case 'm':
+                    case 'M':
+                        toggleMute();
+                        break;
+                    case 'ArrowLeft':
+                        e.preventDefault();
+                        seekBackward(10);
+                        break;
+                    case 'ArrowRight':
+                        e.preventDefault();
+                        seekForward(10);
+                        break;
+                    case 'ArrowUp':
+                        e.preventDefault();
+                        adjustVolume(0.1);
+                        break;
+                    case 'ArrowDown':
+                        e.preventDefault();
+                        adjustVolume(-0.1);
+                        break; case 'Escape':
+                        if (player.isFullscreen()) {
+                            player.exitFullscreen();
+                        } else if (document.getElementById('subtitleSettings').classList.contains('show')) {
+                            hideSubtitleSettings();
+                        }
+                        break;
+                    case 's':
+                    case 'S':
+                        e.preventDefault();
+                        showSubtitleSettings();
+                        break;
+                }
+            });
+        }
+
+        // Player control functions
+        function togglePlayPause() {
+            if (player.paused()) {
+                player.play();
+            } else {
+                player.pause();
+            }
+        }
+
+        function toggleMute() {
+            player.muted(!player.muted());
+        }
+
+        function toggleFullscreen() {
+            if (player.isFullscreen()) {
+                player.exitFullscreen();
+            } else {
+                player.requestFullscreen();
+            }
+        }
+
+        function seekForward(seconds) {
+            const currentTime = player.currentTime();
+            player.currentTime(currentTime + seconds);
+        }
+
+        function seekBackward(seconds) {
+            const currentTime = player.currentTime();
+            player.currentTime(Math.max(0, currentTime - seconds));
+        }
+
+        function adjustVolume(delta) {
+            const currentVolume = player.volume();
+            const newVolume = Math.max(0, Math.min(1, currentVolume + delta));
+            player.volume(newVolume);
+        }
+
+        // UI helper functions
+        function showLoading() {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) {
+                overlay.classList.remove('hidden');
+                overlay.style.display = 'flex';
+            }
+        }
+
+        function hideLoading() {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) {
+                overlay.classList.add('hidden');
+                overlay.style.display = 'none';
+            }
+        }
+
+        function showError(message) {
+            hideLoading();
+            document.getElementById('errorText').textContent = message;
+            document.getElementById('errorMessage').style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        function retryLoad() {
+            hideError();
+            showLoading();
+            player.src({
+                src: CONFIG.videoSource,
+                type: 'application/vnd.apple.mpegurl'
+            });
+            player.load();
+        }
+
+        function showContextMenu(x, y) {
+            const contextMenu = document.getElementById('contextMenu');
+            contextMenu.style.left = x + 'px';
+            contextMenu.style.top = y + 'px';
+            contextMenu.style.display = 'block';
+        }
+
+        function hideContextMenu() {
+            document.getElementById('contextMenu').style.display = 'none';
+        }
+
+        function copyVideoUrl() {
+            navigator.clipboard.writeText(window.location.href).then(function () {
+                console.log('URL copied to clipboard');
+            });
+        }
+
+        // Subtitle Settings Functions
+        function showSubtitleSettings() {
+            document.getElementById('subtitleSettings').classList.add('show');
+            hideContextMenu();
+        }
+
+        function hideSubtitleSettings() {
+            document.getElementById('subtitleSettings').classList.remove('show');
+        }
+
+        function applyAndCloseSettings() {
+            saveSubtitleSettings();
+            hideSubtitleSettings();
+        }
+
+        function initializeSubtitleSettingsPanel() {
+            // Set initial values from current settings
+            document.getElementById('fontFamily').value = currentSubtitleSettings.fontFamily;
+            document.getElementById('fontSize').value = parseFloat(currentSubtitleSettings.fontSize);
+            document.getElementById('fontWeight').value = currentSubtitleSettings.fontWeight;
+            document.getElementById('textColor').value = currentSubtitleSettings.textColor;
+            document.getElementById('backgroundColor').value = currentSubtitleSettings.backgroundColor;
+            document.getElementById('backgroundOpacity').value = currentSubtitleSettings.backgroundOpacity;
+            document.getElementById('borderRadius').value = parseInt(currentSubtitleSettings.borderRadius);
+            document.getElementById('padding').value = parseInt(currentSubtitleSettings.padding.split(' ')[0]);
+            document.getElementById('lineHeight').value = parseFloat(currentSubtitleSettings.lineHeight);
+
+            // Set text shadow select
+            const shadowSelect = document.getElementById('textShadow');
+            for (let option of shadowSelect.options) {
+                if (option.value === currentSubtitleSettings.textShadow) {
+                    option.selected = true;
+                    break;
+                }
+            }
+
+            updateSubtitleSettings();
+        }
+
+        function updateSubtitleSettings() {
+            // Get current values from form
+            const fontFamily = document.getElementById('fontFamily').value;
+            const fontSize = document.getElementById('fontSize').value + 'em';
+            const fontWeight = document.getElementById('fontWeight').value;
+            const textColor = document.getElementById('textColor').value;
+            const backgroundColor = document.getElementById('backgroundColor').value;
+            const backgroundOpacity = document.getElementById('backgroundOpacity').value;
+            const textShadow = document.getElementById('textShadow').value;
+            const borderRadius = document.getElementById('borderRadius').value + 'px';
+            const padding = document.getElementById('padding').value;
+            const lineHeight = document.getElementById('lineHeight').value;
+
+            // Update display values
+            document.getElementById('fontSizeValue').textContent = fontSize;
+            document.getElementById('textColorValue').textContent = textColor;
+            document.getElementById('backgroundColorValue').textContent = backgroundColor;
+            document.getElementById('backgroundOpacityValue').textContent = backgroundOpacity + '%';
+            document.getElementById('borderRadiusValue').textContent = borderRadius;
+            document.getElementById('paddingValue').textContent = padding + 'px ' + (parseInt(padding) * 2) + 'px';
+            document.getElementById('lineHeightValue').textContent = lineHeight;
+
+            // Calculate background color with opacity
+            const bgOpacity = backgroundOpacity / 100;
+            const bgColorRgb = hexToRgb(backgroundColor);
+            const backgroundColorWithOpacity = `rgba(${bgColorRgb.r}, ${bgColorRgb.g}, ${bgColorRgb.b}, ${bgOpacity})`;
+
+            // Apply to CSS variables for preview
+            const root = document.documentElement;
+            root.style.setProperty('--subtitle-font-family', fontFamily);
+            root.style.setProperty('--subtitle-font-size', fontSize);
+            root.style.setProperty('--subtitle-font-weight', fontWeight);
+            root.style.setProperty('--subtitle-color', textColor);
+            root.style.setProperty('--subtitle-background', backgroundColorWithOpacity);
+            root.style.setProperty('--subtitle-shadow', textShadow);
+            root.style.setProperty('--subtitle-border-radius', borderRadius);
+            root.style.setProperty('--subtitle-padding', padding + 'px ' + (parseInt(padding) * 2) + 'px');
+            root.style.setProperty('--subtitle-line-height', lineHeight);
+
+            // Update current settings object
+            currentSubtitleSettings = {
+                fontFamily,
+                fontSize,
+                fontWeight,
+                textColor,
+                backgroundColor,
+                backgroundOpacity: parseInt(backgroundOpacity),
+                textShadow,
+                borderRadius,
+                padding: padding + 'px ' + (parseInt(padding) * 2) + 'px',
+                lineHeight
+            };
+        }
+
+        function resetSubtitleSettings() {
+            currentSubtitleSettings = { ...defaultSubtitleSettings };
+            initializeSubtitleSettingsPanel();
+
+            // Clear localStorage
+            localStorage.removeItem('subtitleSettings');
+        }
+
+        function saveSubtitleSettings() {
+            localStorage.setItem('subtitleSettings', JSON.stringify(currentSubtitleSettings));
+        }
+
+        function loadSubtitleSettings() {
+            const saved = localStorage.getItem('subtitleSettings');
+            if (saved) {
+                currentSubtitleSettings = { ...defaultSubtitleSettings, ...JSON.parse(saved) };
+            }
+
+            // Apply loaded settings
+            const root = document.documentElement;
+            const bgOpacity = currentSubtitleSettings.backgroundOpacity / 100;
+            const bgColorRgb = hexToRgb(currentSubtitleSettings.backgroundColor);
+            const backgroundColorWithOpacity = `rgba(${bgColorRgb.r}, ${bgColorRgb.g}, ${bgColorRgb.b}, ${bgOpacity})`;
+
+            root.style.setProperty('--subtitle-font-family', currentSubtitleSettings.fontFamily);
+            root.style.setProperty('--subtitle-font-size', currentSubtitleSettings.fontSize);
+            root.style.setProperty('--subtitle-font-weight', currentSubtitleSettings.fontWeight);
+            root.style.setProperty('--subtitle-color', currentSubtitleSettings.textColor);
+            root.style.setProperty('--subtitle-background', backgroundColorWithOpacity);
+            root.style.setProperty('--subtitle-shadow', currentSubtitleSettings.textShadow);
+            root.style.setProperty('--subtitle-border-radius', currentSubtitleSettings.borderRadius);
+            root.style.setProperty('--subtitle-padding', currentSubtitleSettings.padding);
+            root.style.setProperty('--subtitle-line-height', currentSubtitleSettings.lineHeight);
+        }
+
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        }
+
+        // Utility functions
+        function isMobile() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
+        // Handle page visibility changes (pause video when tab is hidden)
+        document.addEventListener('visibilitychange', function () {
+            if (document.hidden && player && !player.paused()) {
+                player.pause();
+            }
+        });
+
+        // Error handling for network issues
+        window.addEventListener('online', function () {
+            if (player && player.error()) {
+                retryLoad();
+            }
+        });
+
+        window.addEventListener('offline', function () {
+            showError('Network connection lost. Please check your internet connection.');
+        });        // Cleanup on page unload
+        window.addEventListener('beforeunload', function () {
+            if (player) {
+                player.dispose();
+            }
+        });        // Custom Control Bar Functions
+        function initializeCustomControls() {
+            const controlBar = document.getElementById('customControlBar');
+            const videoContainer = document.querySelector('.player-container');
+
+            // Handle mouse movement with debouncing
+            function handleMouseMove() {
+                lastMouseMoveTime = Date.now();
+                showControls();
+
+                // Clear existing mouse idle timeout
+                if (mouseIdleTimeout) {
+                    clearTimeout(mouseIdleTimeout);
+                }
+
+                // Only start hide timer if video is playing
+                if (player && !player.paused()) {
+                    mouseIdleTimeout = setTimeout(() => {
+                        // Check if mouse is still idle
+                        if (Date.now() - lastMouseMoveTime >= 3000) {
+                            hideControlsImmediate();
+                        }
+                    }, 3000);
+                }
+            }
+
+            // Show controls on mouse enter and move
+            videoContainer.addEventListener('mouseenter', showControls);
+            videoContainer.addEventListener('mousemove', handleMouseMove);
+            videoContainer.addEventListener('mouseleave', hideControlsDelayed);
+
+            // Touch events for mobile
+            videoContainer.addEventListener('touchstart', showControls);
+            videoContainer.addEventListener('touchend', hideControlsDelayed);
+
+            // Fullscreen mouse events
+            document.addEventListener('mouseenter', (e) => {
+                if (player && player.isFullscreen()) {
+                    showControls();
+                }
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (player && player.isFullscreen()) {
+                    handleMouseMove();
+                }
+            });
+
+            document.addEventListener('mouseleave', (e) => {
+                if (player && player.isFullscreen()) {
+                    hideControlsDelayed();
+                }
+            });
+            // Initialize all control buttons
+            initializePlayButton();
+            initializeProgressBar();
+            initializeVolumeControls();
+            initializeCaptionControls();
+            initializeAudioControls();
+            initializeSpeedControls();
+            initializeQualityButton();
+            initializeFullscreenButton();
+
+            // Update display periodically
+            setInterval(updateControlsDisplay, 100);
+
+            // Show controls initially
+            showControls();
+        } function showControls() {
+            const controlBar = document.getElementById('customControlBar');
+            const videoContainer = document.querySelector('.player-container');
+
+            controlBar.classList.add('show');
+            videoContainer.classList.remove('hide-cursor');
+
+            // Clear any existing timeouts
+            if (controlBarTimeout) {
+                clearTimeout(controlBarTimeout);
+                controlBarTimeout = null;
+            }
+            if (mouseIdleTimeout) {
+                clearTimeout(mouseIdleTimeout);
+                mouseIdleTimeout = null;
+            }
+        } function hideControlsDelayed() {
+            if (controlBarTimeout) {
+                clearTimeout(controlBarTimeout);
+            }
+
+            controlBarTimeout = setTimeout(() => {
+                const controlBar = document.getElementById('customControlBar');
+                const videoContainer = document.querySelector('.player-container');
+
+                // Only hide controls if video is playing and not dragging
+                if (!isDragging && player && !player.paused()) {
+                    controlBar.classList.remove('show');
+                    videoContainer.classList.add('hide-cursor');
+                }
+            }, 3000);
+        }
+
+        function hideControlsImmediate() {
+            const controlBar = document.getElementById('customControlBar');
+            const videoContainer = document.querySelector('.player-container');
+
+            // Only hide controls if video is playing and not dragging
+            if (!isDragging && player && !player.paused()) {
+                controlBar.classList.remove('show');
+                videoContainer.classList.add('hide-cursor');
+            }
+        }
+
+        function initializePlayButton() {
+            const playBtn = document.getElementById('playBtn');
+            const playIcon = playBtn.querySelector('span');
+
+            playBtn.addEventListener('click', () => {
+                if (player.paused()) {
+                    player.play();
+                } else {
+                    player.pause();
+                }
+            });
+
+            // Update play button state
+            player.on('play', () => {
+                playIcon.className = 'icon-pause';
+            });
+
+            player.on('pause', () => {
+                playIcon.className = 'icon-play';
+            });
+        }
+
+        function initializeProgressBar() {
+            const progressBar = document.getElementById('progressBar');
+            const progressPlayed = document.getElementById('progressPlayed');
+            const progressBuffer = document.getElementById('progressBuffer');
+            const progressHandle = document.getElementById('progressHandle');
+            const timeTooltip = document.getElementById('timeTooltip');
+
+            // Click to seek
+            progressBar.addEventListener('click', (e) => {
+                const rect = progressBar.getBoundingClientRect();
+                const percent = (e.clientX - rect.left) / rect.width;
+                const duration = player.duration();
+                if (duration) {
+                    player.currentTime(duration * percent);
+                }
+            });
+
+            // Drag to seek
+            let dragging = false;
+
+            progressHandle.addEventListener('mousedown', (e) => {
+                dragging = true;
+                isDragging = true;
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (dragging) {
+                    const rect = progressBar.getBoundingClientRect();
+                    const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                    const duration = player.duration();
+                    if (duration) {
+                        player.currentTime(duration * percent);
+                    }
+                }
+            });
+
+            document.addEventListener('mouseup', () => {
+                dragging = false;
+                isDragging = false;
+            });
+
+            // Show time tooltip on hover
+            progressBar.addEventListener('mousemove', (e) => {
+                const rect = progressBar.getBoundingClientRect();
+                const percent = (e.clientX - rect.left) / rect.width;
+                const duration = player.duration();
+
+                if (duration) {
+                    const time = duration * percent;
+                    timeTooltip.textContent = formatTime(time);
+                    timeTooltip.style.left = `${e.clientX - rect.left}px`;
+                    timeTooltip.style.opacity = '1';
+                }
+            });
+
+            progressBar.addEventListener('mouseleave', () => {
+                timeTooltip.style.opacity = '0';
+            });
+        } function initializeVolumeControls() {
+            const volumeBtn = document.getElementById('volumeBtn');
+            const volumeSlider = document.getElementById('volumeSlider');
+            const volumeFilled = document.getElementById('volumeFilled');
+            const volumeHandle = document.getElementById('volumeHandle');
+            const volumeIcon = volumeBtn.querySelector('span');
+
+            let isDragging = false;
+
+            volumeBtn.addEventListener('click', () => {
+                player.muted(!player.muted());
+            });
+
+            volumeSlider.addEventListener('click', (e) => {
+                if (!isDragging) {
+                    const rect = volumeSlider.getBoundingClientRect();
+                    const percent = (e.clientX - rect.left) / rect.width;
+                    player.volume(Math.max(0, Math.min(1, percent)));
+                    player.muted(false);
+                }
+            });
+
+            // Volume handle dragging
+            volumeHandle.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                e.preventDefault();
+
+                const handleMouseMove = (e) => {
+                    const rect = volumeSlider.getBoundingClientRect();
+                    const percent = (e.clientX - rect.left) / rect.width;
+                    player.volume(Math.max(0, Math.min(1, percent)));
+                    player.muted(false);
+                };
+
+                const handleMouseUp = () => {
+                    isDragging = false;
+                    document.removeEventListener('mousemove', handleMouseMove);
+                    document.removeEventListener('mouseup', handleMouseUp);
+                };
+
+                document.addEventListener('mousemove', handleMouseMove);
+                document.addEventListener('mouseup', handleMouseUp);
+            });
+            // Update volume display and handle position
+            player.on('volumechange', () => {
+                const volume = player.volume();
+                const muted = player.muted();
+
+                volumeFilled.style.width = `${volume * 100}%`;
+                volumeHandle.style.left = `${volume * 100}%`;
+                volumeIcon.className = muted || volume === 0 ? 'icon-volume-mute' : 'icon-volume';
+            });
+
+            // Set initial volume handle position
+            setTimeout(() => {
+                const initialVolume = player.volume();
+                volumeFilled.style.width = `${initialVolume * 100}%`;
+                volumeHandle.style.left = `${initialVolume * 100}%`;
+            }, 100);
+        }
+
+        function initializeCaptionControls() {
+            const captionDropdown = document.getElementById('captionDropdown');
+            const captionBtn = document.getElementById('captionBtn');
+            captionBtn.addEventListener('click', () => {
+                captionDropdown.classList.toggle('active');
+
+                // Close other dropdowns
+                document.getElementById('audioDropdown').classList.remove('active');
+                document.getElementById('speedDropdown').classList.remove('active');
+            });
+
+            // Handle caption menu items
+            captionDropdown.querySelectorAll('.custom-dropdown-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    const track = e.target.dataset.track;
+                    if (track === 'settings') {
+                        captionDropdown.classList.remove('active');
+                        setTimeout(() => {
+                            showSubtitleSettings();
+                        }, 100);
+                    } else {
+                        // Handle caption on/off
+                        const tracks = player.textTracks();
+                        for (let i = 0; i < tracks.length; i++) {
+                            if (tracks[i].language === 'ml') {
+                                tracks[i].mode = track === 'ml' ? 'showing' : 'hidden';
+                                break;
+                            }
+                        }
+                        // Update active state
+                        captionDropdown.querySelectorAll('.custom-dropdown-item').forEach(el =>
+                            el.classList.remove('active'));
+                        e.target.classList.add('active');
+                        // Update button state
+                        captionBtn.classList.toggle('active', track === 'ml');
+                        captionDropdown.classList.remove('active');
+                    }
+                });
+            });
+        }
+
+        function initializeAudioControls() {
+            const audioDropdown = document.getElementById('audioDropdown');
+            const audioBtn = document.getElementById('audioBtn');
+
+            audioBtn.addEventListener('click', () => {
+                audioDropdown.classList.toggle('active');
+
+                // Close other dropdowns
+                document.getElementById('captionDropdown').classList.remove('active');
+                document.getElementById('speedDropdown').classList.remove('active');
+            });
+
+            // Handle audio menu items
+            audioDropdown.querySelectorAll('.custom-dropdown-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    const audioTrack = e.target.dataset.audio;
+
+                    // Update active state
+                    audioDropdown.querySelectorAll('.custom-dropdown-item').forEach(el =>
+                        el.classList.remove('active'));
+                    e.target.classList.add('active');
+
+                    audioDropdown.classList.remove('active');
+                    console.log('Audio track selected:', audioTrack);
+                });
+            });
+        } function initializeSpeedControls() {
+            const speedDropdown = document.getElementById('speedDropdown');
+            const speedBtn = document.getElementById('speedBtn');
+            const speedIcon = speedBtn.querySelector('span');
+
+            speedBtn.addEventListener('click', () => {
+                speedDropdown.classList.toggle('active');
+
+                // Close other dropdowns
+                document.getElementById('captionDropdown').classList.remove('active');
+                document.getElementById('audioDropdown').classList.remove('active');
+            });
+
+            // Handle speed menu items
+            speedDropdown.querySelectorAll('.custom-dropdown-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    const speed = parseFloat(e.target.dataset.speed);
+                    player.playbackRate(speed);
+
+                    // Update button text to show current speed
+                    speedIcon.textContent = speed + 'x';
+
+                    // Update active state
+                    speedDropdown.querySelectorAll('.custom-dropdown-item').forEach(el =>
+                        el.classList.remove('active'));
+                    e.target.classList.add('active');
+
+                    speedDropdown.classList.remove('active');
+                });
+            });
+        } function initializeQualityButton() {
+            const qualityBtn = document.getElementById('qualityBtn');
+
+            qualityBtn.addEventListener('click', () => {
+                // Quality button - currently only Full HD is available
+                // You can expand this to show a dropdown when more qualities are available
+                console.log('Quality button clicked - currently Full HD only');
+            });
+        } function initializeFullscreenButton() {
+            const fullscreenBtn = document.getElementById('fullscreenBtn');
+
+            // Check if device is mobile
+            function isMobileDevice() {
+                return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                    window.innerWidth <= 768;
+            }
+
+            // Lock orientation to landscape on mobile
+            function lockToLandscape() {
+                if (screen.orientation && screen.orientation.lock) {
+                    screen.orientation.lock('landscape').catch(err => {
+                        console.log('Orientation lock failed:', err);
+                    });
+                } else if (screen.lockOrientation) {
+                    screen.lockOrientation('landscape');
+                } else if (screen.webkitLockOrientation) {
+                    screen.webkitLockOrientation('landscape');
+                } else if (screen.mozLockOrientation) {
+                    screen.mozLockOrientation('landscape');
+                }
+            }
+
+            // Unlock orientation
+            function unlockOrientation() {
+                if (screen.orientation && screen.orientation.unlock) {
+                    screen.orientation.unlock();
+                } else if (screen.unlockOrientation) {
+                    screen.unlockOrientation();
+                } else if (screen.webkitUnlockOrientation) {
+                    screen.webkitUnlockOrientation();
+                } else if (screen.mozUnlockOrientation) {
+                    screen.mozUnlockOrientation();
+                }
+            }
+
+            fullscreenBtn.addEventListener('click', () => {
+                if (player.isFullscreen()) {
+                    player.exitFullscreen();
+                    // Unlock orientation when exiting fullscreen on mobile
+                    if (isMobileDevice()) {
+                        unlockOrientation();
+                    }
+                } else {
+                    player.requestFullscreen();
+                    // Lock to landscape when entering fullscreen on mobile
+                    if (isMobileDevice()) {
+                        // Small delay to ensure fullscreen is active
+                        setTimeout(() => {
+                            lockToLandscape();
+                        }, 100);
+                    }
+                }
+            });
+
+            // Listen for fullscreen changes to handle orientation
+            player.on('fullscreenchange', () => {
+                if (isMobileDevice()) {
+                    if (player.isFullscreen()) {
+                        lockToLandscape();
+                    } else {
+                        unlockOrientation();
+                    }
+                }
+            });
+        }
+
+        function updateControlsDisplay() {
+            if (!player) return;
+
+            // Update progress
+            const currentTime = player.currentTime();
+            const duration = player.duration();
+            const buffered = player.buffered();
+
+            if (duration) {
+                const progressPercent = (currentTime / duration) * 100;
+                document.getElementById('progressPlayed').style.width = `${progressPercent}%`;
+
+                // Update buffered
+                if (buffered.length > 0) {
+                    const bufferPercent = (buffered.end(buffered.length - 1) / duration) * 100;
+                    document.getElementById('progressBuffer').style.width = `${bufferPercent}%`;
+                }
+
+                // Update time display
+                document.getElementById('currentTime').textContent = formatTime(currentTime);
+                document.getElementById('duration').textContent = formatTime(duration);
+            }
+        }
+
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${minutes}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.custom-dropdown')) {
+                document.querySelectorAll('.custom-dropdown').forEach(dropdown => {
+                    dropdown.classList.remove('active');
+                });
+            }
+        });
+    </script>
+</body>
+
+</html>
