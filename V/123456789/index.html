@@ -443,14 +443,14 @@
         }
 
         .icon-volume::before {
-            content: '028';
+            content: '\f028';
             font-family: 'Font Awesome 6 Free';
             font-weight: 900;
             font-size: 16px;
         }
 
         .icon-volume-mute::before {
-            content: '6a9';
+            content: '\f6a9';
             font-family: 'Font Awesome 6 Free';
             font-weight: 900;
             font-size: 16px;
@@ -465,7 +465,7 @@
         }
 
         .icon-fullscreen::before {
-            content: '065';
+            content: '\f065';
             font-family: 'Font Awesome 6 Free';
             font-weight: 900;
             font-size: 14px;
@@ -480,7 +480,7 @@
         }
 
         .icon-audio::before {
-            content: '144';
+            content: '\f144';
             content: 'AU';
             font-family: Arial, sans-serif;
             font-weight: bold;
@@ -1453,8 +1453,7 @@
         }
 
         function parseVTT(vttText) {
-            const lines = vttText.split('
-');
+            const lines = vttText.split('\n');
             const cues = [];
             let currentCue = null;
 
@@ -1480,8 +1479,7 @@
                     };
                 } else if (currentCue && line) {
                     // Add text to current cue
-                    if (currentCue.text) currentCue.text += '
-';
+                    if (currentCue.text) currentCue.text += '\n';
                     currentCue.text += line;
                 }
             }
