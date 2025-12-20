@@ -1687,27 +1687,23 @@
         }
 
         function addSubtitleSupport() {
-            // Add Video.js text track for caption menu functionality
-            const textTrack = player.addRemoteTextTrack({
-                kind: 'subtitles',
-                label: 'ML',
-                language: 'ml',
-                src: CONFIG.subtitleSource,
-                default: true
-            }, false);
-
-            // Set track mode to showing for menu functionality
+            // Video.js automatically loads subtitle tracks from the HLS master playlist
+            // No need to manually add tracks - just enable them when ready
             player.ready(() => {
                 const tracks = player.textTracks();
+                console.log(`Loaded ${tracks.length} text tracks from HLS`);
+
+                // Enable the first subtitle track by default
                 for (let i = 0; i < tracks.length; i++) {
-                    if (tracks[i].language === 'ml') {
+                    if (tracks[i].kind === 'subtitles' || tracks[i].kind === 'captions') {
                         tracks[i].mode = 'showing';
-                        break;
+                        console.log(`Enabled track: ${tracks[i].label} (${tracks[i].language})`);
+                        break; // Only enable the first one
                     }
                 }
             });
 
-            console.log('Video.js text tracks enabled for caption menu');
+            console.log('Subtitle support initialized - tracks loaded from HLS');
         }
 
         function setupEventListeners() {
