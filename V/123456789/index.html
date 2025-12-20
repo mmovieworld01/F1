@@ -53,9 +53,9 @@
         }
 
         /* Target specific problematic overlay but preserve subtitle display */
-        .video-js div[style*="inset: 0px"][style*="margin: 1.5%"]:not(.vjs-text-track-display) {
-            display: none !important;
-        }
+        /* .video-js div[style*="inset: 0px"][style*="margin: 1.5%"]:not(.vjs-text-track-display) { */
+        /* display: none !important; */
+        /* } */
 
         /* Ensure video is always visible */
         .video-js video {
@@ -115,9 +115,9 @@
         }
 
         /* Hide Video.js subtitle display to avoid conflicts with custom overlay */
-        .video-js .vjs-text-track-display {
-            display: none !important;
-        }
+        /* .video-js .vjs-text-track-display { */
+        /* display: none !important; */
+        /* } */
 
         /* Ensure caption menu button is enabled */
         .video-js .vjs-subtitles-button,
@@ -647,23 +647,23 @@
         }
 
         /* Subtitle styles */
-        .video-js .vjs-text-track-display {
-            font-size: var(--subtitle-font-size, 1.4em);
-            font-family: var(--subtitle-font-family, 'Arial, sans-serif');
-            color: var(--subtitle-color, #ffffff);
-            text-shadow: var(--subtitle-shadow, 2px 2px 4px rgba(0, 0, 0, 0.8));
-            font-weight: var(--subtitle-weight, normal);
-            line-height: var(--subtitle-line-height, 1.4);
-        }
+        /* .video-js .vjs-text-track-display { */
+        /* font-size: var(--subtitle-font-size, 1.4em); */
+        /* font-family: var(--subtitle-font-family, 'Arial, sans-serif'); */
+        /* color: var(--subtitle-color, #ffffff); */
+        /* text-shadow: var(--subtitle-shadow, 2px 2px 4px rgba(0, 0, 0, 0.8)); */
+        /* font-weight: var(--subtitle-weight, normal); */
+        /* line-height: var(--subtitle-line-height, 1.4); */
+        /* } */
 
-        .video-js .vjs-text-track-display div {
-            background: var(--subtitle-background, rgba(0, 0, 0, 0.6));
-            padding: var(--subtitle-padding, 4px 8px);
-            border-radius: var(--subtitle-border-radius, 4px);
-            border: var(--subtitle-border, none);
-            margin-bottom: var(--subtitle-margin, 2px);
-            display: inline-block;
-        }
+        /* .video-js .vjs-text-track-display div { */
+        /* background: var(--subtitle-background, rgba(0, 0, 0, 0.6)); */
+        /* padding: var(--subtitle-padding, 4px 8px); */
+        /* border-radius: var(--subtitle-border-radius, 4px); */
+        /* border: var(--subtitle-border, none); */
+        /* margin-bottom: var(--subtitle-margin, 2px); */
+        /* display: inline-block; */
+        /* } */
 
         /* Subtitle Settings Panel */
         .subtitle-settings {
@@ -952,9 +952,9 @@
                 font-size: 2em;
             }
 
-            .video-js .vjs-text-track-display {
-                font-size: 1.2em;
-            }
+        /* .video-js .vjs-text-track-display { */
+        /* font-size: 1.2em; */
+        /* } */
         }
 
         /* Custom context menu */
@@ -1302,13 +1302,13 @@
                         // Check if it's NOT a subtitle element
                         if (!overlay.classList.contains('vjs-text-track-cue') &&
                             !overlay.classList.contains('vjs-text-track-display') &&
-                            !overlay.closest('.vjs-text-track-display') &&
-                            style.backgroundColor.includes('0, 0, 0') &&
-                            parseFloat(style.opacity) > 0.3) { // Only remove if opacity > 0.3 (not transparent)
-                            console.log('Removing Video.js overlay:', overlay);
-                            overlay.style.display = 'none';
-                            overlay.remove();
-                        }
+        /* !overlay.closest('.vjs-text-track-display') && */
+        /* style.backgroundColor.includes('0, 0, 0') && */
+        /* parseFloat(style.opacity) > 0.3) { // Only remove if opacity > 0.3 (not transparent) */
+        /* console.log('Removing Video.js overlay:', overlay); */
+        /* overlay.style.display = 'none'; */
+        /* overlay.remove(); */
+        /* } */
                     });
 
                     // Also check for poster image overlays (but not subtitles)
