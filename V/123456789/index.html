@@ -443,14 +443,14 @@
         }
 
         .icon-volume::before {
-            content: '\f028';
+            content: '028';
             font-family: 'Font Awesome 6 Free';
             font-weight: 900;
             font-size: 16px;
         }
 
         .icon-volume-mute::before {
-            content: '\f6a9';
+            content: '6a9';
             font-family: 'Font Awesome 6 Free';
             font-weight: 900;
             font-size: 16px;
@@ -465,7 +465,7 @@
         }
 
         .icon-fullscreen::before {
-            content: '\f065';
+            content: '065';
             font-family: 'Font Awesome 6 Free';
             font-weight: 900;
             font-size: 14px;
@@ -480,7 +480,7 @@
         }
 
         .icon-audio::before {
-            content: '\f144';
+            content: '144';
             content: 'AU';
             font-family: Arial, sans-serif;
             font-weight: bold;
@@ -1061,9 +1061,9 @@
                         <button class="custom-btn" id="captionBtn">
                             <span class="icon-cc"></span>
                         </button>
-                        <div class="custom-dropdown-menu">
+                        <div class="custom-dropdown-menu" id="captionDropdownMenu">
                             <div class="custom-dropdown-item" data-track="off">Off</div>
-                            <div class="custom-dropdown-item active" data-track="ml">ML</div>
+                            <!-- Subtitle tracks will be added here dynamically -->
                             <div class="custom-dropdown-item" data-track="settings">Caption Settings</div>
                         </div>
                     </div>
@@ -1253,10 +1253,13 @@
         let currentSubtitleSettings = { ...defaultSubtitleSettings };
         // Custom subtitle system
         let subtitleData = [];
-        let subtitleInterval = null; let controlBarTimeout = null;
+        let subtitleInterval = null;
+        let controlBarTimeout = null;
         let isDragging = false;
         let lastMouseMoveTime = 0;
-        let mouseIdleTimeout = null;// Initialize the player when DOM is loaded
+        let mouseIdleTimeout = null;
+        let isInitializing = true; // Flag to prevent settings popup during initialization
+        // Initialize the player when DOM is loaded
         document.addEventListener('DOMContentLoaded', function () {
             // Force hide all overlays immediately
             hideAllOverlays();
@@ -1421,6 +1424,12 @@
                 for (let i = 0; i < tracks.length; i++) {
                     console.log(`Track ${i}:`, tracks[i].label, tracks[i].language, tracks[i].mode);
                 }
+
+                // Set initialization complete after tracks are loaded
+                setTimeout(() => {
+                    isInitializing = false;
+                    console.log('Initialization complete, settings can now open');
+                }, 1000);
             });            // Add subtitle support using both Video.js (for menu) and custom overlay (for display)
             addSubtitleSupport();
             loadCustomSubtitles();
@@ -1444,7 +1453,8 @@
         }
 
         function parseVTT(vttText) {
-            const lines = vttText.split('\n');
+            const lines = vttText.split('
+');
             const cues = [];
             let currentCue = null;
 
@@ -1470,7 +1480,8 @@
                     };
                 } else if (currentCue && line) {
                     // Add text to current cue
-                    if (currentCue.text) currentCue.text += '\n';
+                    if (currentCue.text) currentCue.text += '
+';
                     currentCue.text += line;
                 }
             }
@@ -1644,9 +1655,11 @@
                                 // Hide the Video.js dialog
                                 node.style.display = 'none';
 
-                                // Show our custom settings
-                                showSubtitleSettings();
-                                console.log('Intercepted Video.js caption settings dialog');
+                                // Show our custom settings only if not initializing
+                                if (!isInitializing) {
+                                    showSubtitleSettings();
+                                    console.log('Intercepted Video.js caption settings dialog');
+                                }
                             }
                         }
                     });
@@ -2294,6 +2307,66 @@
         function initializeCaptionControls() {
             const captionDropdown = document.getElementById('captionDropdown');
             const captionBtn = document.getElementById('captionBtn');
+            const captionDropdownMenu = document.getElementById('captionDropdownMenu');
+
+            // Populate caption dropdown dynamically from Video.js tracks
+            function populateCaptionMenu() {
+                const tracks = player.textTracks();
+
+                // Find the "Off" button and "Settings" button to keep them
+                const offButton = captionDropdownMenu.querySelector('[data-track="off"]');
+                const settingsButton = captionDropdownMenu.querySelector('[data-track="settings"]');
+
+                // Clear all items except Off and Settings  
+                const allItems = captionDropdownMenu.querySelectorAll('.custom-dropdown-item');
+                allItems.forEach(item => {
+                    if (item.dataset.track !== 'off' && item.dataset.track !== 'settings') {
+                        item.remove();
+                    }
+                });
+
+                // Add subtitle tracks (filter out segment-metadata and otros non-subtitle tracks)
+                const subtitleTracks = [];
+                for (let i = 0; i < tracks.length; i++) {
+                    const track = tracks[i];
+                    if (track.kind === 'subtitles' || track.kind === 'captions') {
+                        subtitleTracks.push({
+                            label: track.label || track.language.toUpperCase(),
+                            language: track.language,
+                            mode: track.mode
+                        });
+                    }
+                }
+
+                // Insert subtitle track items before the settings button
+                subtitleTracks.forEach(track => {
+                    const item = document.createElement('div');
+                    item.className = 'custom-dropdown-item';
+                    item.dataset.track = track.language;
+                    item.textContent = track.label;
+                    if (track.mode === 'showing') {
+                        item.classList.add('active');
+                    }
+                    captionDropdownMenu.insertBefore(item, settingsButton);
+                });
+
+                console.log(`Caption menu populated with ${subtitleTracks.length} subtitle tracks`);
+            }
+
+            // Populate the menu when tracks are loaded
+            player.ready(() => {
+                setTimeout(() => {
+                    populateCaptionMenu();
+                }, 500);
+            });
+
+            // Also populate when tracks are added dynamically
+            player.on('loadeddata', () => {
+                setTimeout(() => {
+                    populateCaptionMenu();
+                }, 500);
+            });
+
             captionBtn.addEventListener('click', () => {
                 captionDropdown.classList.toggle('active');
 
@@ -2302,33 +2375,42 @@
                 document.getElementById('speedDropdown').classList.remove('active');
             });
 
-            // Handle caption menu items
-            captionDropdown.querySelectorAll('.custom-dropdown-item').forEach(item => {
-                item.addEventListener('click', (e) => {
-                    const track = e.target.dataset.track;
-                    if (track === 'settings') {
-                        captionDropdown.classList.remove('active');
-                        setTimeout(() => {
-                            showSubtitleSettings();
-                        }, 100);
-                    } else {
-                        // Handle caption on/off
-                        const tracks = player.textTracks();
-                        for (let i = 0; i < tracks.length; i++) {
-                            if (tracks[i].language === 'ml') {
-                                tracks[i].mode = track === 'ml' ? 'showing' : 'hidden';
-                                break;
+            // Handle caption menu items (using event delegation for dynamically added items)
+            captionDropdownMenu.addEventListener('click', (e) => {
+                const item = e.target.closest('.custom-dropdown-item');
+                if (!item) return;
+
+                const track = item.dataset.track;
+
+                if (track === 'settings') {
+                    captionDropdown.classList.remove('active');
+                    setTimeout(() => {
+                        showSubtitleSettings();
+                    }, 100);
+                } else {
+                    // Handle caption on/off and language switching
+                    const tracks = player.textTracks();
+                    for (let i = 0; i < tracks.length; i++) {
+                        if (tracks[i].kind === 'subtitles' || tracks[i].kind === 'captions') {
+                            if (track === 'off') {
+                                tracks[i].mode = 'hidden';
+                            } else if (tracks[i].language === track) {
+                                tracks[i].mode = 'showing';
+                            } else {
+                                tracks[i].mode = 'hidden';
                             }
                         }
-                        // Update active state
-                        captionDropdown.querySelectorAll('.custom-dropdown-item').forEach(el =>
-                            el.classList.remove('active'));
-                        e.target.classList.add('active');
-                        // Update button state
-                        captionBtn.classList.toggle('active', track === 'ml');
-                        captionDropdown.classList.remove('active');
                     }
-                });
+
+                    // Update active state
+                    captionDropdownMenu.querySelectorAll('.custom-dropdown-item').forEach(el =>
+                        el.classList.remove('active'));
+                    item.classList.add('active');
+
+                    // Update button state
+                    captionBtn.classList.toggle('active', track !== 'off');
+                    captionDropdown.classList.remove('active');
+                }
             });
         }
 
