@@ -1438,17 +1438,54 @@
             setupKeyboardShortcuts();
         }
 
+        let currentSubtitleTrack = null;
+
         function loadCustomSubtitles() {
-            // Load and parse the VTT file
-            fetch(CONFIG.subtitleSource)
+            // This function is called initially, but we'll load subtitles on demand
+            startSubtitleDisplay();
+
+            //  Listen for track changes and reload subtitles
+            const tracks = player.textTracks();
+            tracks.addEventListener('change', () => {
+                // Find the active subtitle track
+                let activeTrack = null;
+                for (let i = 0; i < tracks.length; i++) {
+                    if ((tracks[i].kind === 'subtitles' || tracks[i].kind === 'captions') && tracks[i].mode === 'showing') {
+                        activeTrack = tracks[i];
+                        break;
+                    }
+                }
+
+                // If track changed, load new subtitles
+                if (activeTrack && activeTrack !== currentSubtitleTrack) {
+                    currentSubtitleTrack = activeTrack;
+                    loadSubtitleTrack(activeTrack);
+                } else if (!activeTrack) {
+                    currentSubtitleTrack = null;
+                    subtitleData = [];
+                }
+            });
+        }
+
+        function loadSubtitleTrack(track) {
+            // Get the VTT file URL from the track
+            const vttUrl = track.src || track.activeCues?.[0]?.track?.src;
+
+            if (!vttUrl) {
+                console.error('No VTT URL found for track:', track.label);
+                return;
+            }
+
+            console.log('Loading subtitle track:', track.label, vttUrl);
+
+            fetch(vttUrl)
                 .then(response => response.text())
                 .then(vttText => {
                     subtitleData = parseVTT(vttText);
-                    console.log('Custom subtitles loaded:', subtitleData.length, 'cues');
-                    startSubtitleDisplay();
+                    console.log('Loaded', subtitleData.length, 'cues for', track.label);
                 })
                 .catch(error => {
-                    console.error('Failed to load custom subtitles:', error);
+                    console.error('Failed to load subtitles for', track.label, ':', error);
                 });
         }
 
@@ -1522,12 +1559,12 @@
         function updateSubtitleDisplay() {
             if (!player || player.paused()) return;
 
-            // Check if subtitles are enabled via Video.js caption menu
+            // Check if any subtitle track is enabled
             const tracks = player.textTracks();
             let subtitlesEnabled = false;
 
             for (let i = 0; i < tracks.length; i++) {
-                if (tracks[i].language === 'ml' && tracks[i].mode === 'showing') {
+                if ((tracks[i].kind === 'subtitles' || tracks[i].kind === 'captions') && tracks[i].mode === 'showing') {
                     subtitlesEnabled = true;
                     break;
                 }
