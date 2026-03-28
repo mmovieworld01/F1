@@ -112,7 +112,7 @@
                 <div class="custom-controls-right">
                     <div class="custom-dropdown" id="captionDropdown"><button class="custom-btn" id="captionBtn"><span class="icon-cc"></span></button><div class="custom-dropdown-menu">
                             <div class="custom-dropdown-item" data-track="off">Off</div>
-                            <div class="custom-dropdown-item active" data-track="0" data-label="Malayalam">Malayalam</div>
+                            <div class="custom-dropdown-item active" data-track="0" data-label="English">English</div>
                             <div class="custom-dropdown-item" data-track="settings">Caption Settings</div>
                     </div></div>
                     <div class="custom-dropdown" id="audioDropdown"><button class="custom-btn" id="audioBtn"><span class="icon-audio"></span></button><div class="custom-dropdown-menu"><div class="custom-dropdown-item active" data-audio="default">Default</div></div></div>
@@ -147,7 +147,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@videojs/http-streaming@3.8.0/dist/videojs-http-streaming.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
     <script>
-        const CONFIG = { videoSources: [{"label": "Auto", "src": "master.m3u8"}, {"label": "1080p", "src": "video_1080p.m3u8"}, {"label": "720p", "src": "video_720p.m3u8"}, {"label": "480p", "src": "video_480p.m3u8"}], subtitleTracks: [{"index": 0, "label": "Malayalam", "code": "und", "src": "sub_0.vtt"}], autoplay: false, muted: false };
+        const CONFIG = { videoSources: [{"label": "Auto", "src": "master.m3u8"}, {"label": "1080p", "src": "video_1080p.m3u8"}, {"label": "720p", "src": "video_720p.m3u8"}, {"label": "480p", "src": "video_480p.m3u8"}], subtitleTracks: [{"index": 0, "label": "English", "code": "und", "src": "sub_0.vtt"}], autoplay: false, muted: false };
         let player, currentSubtitleIndex = CONFIG.subtitleTracks.length > 0 ? 0 : -1, subtitleDataCache = {}, subtitleInterval = null, controlBarTimeout = null, isDragging = false, currentQualityLabel = 'Auto';
         const defaultSubtitleSettings = { fontFamily: 'Arial, sans-serif', fontSize: '1.4em', fontWeight: 'normal', textColor: '#ffffff', backgroundColor: '#000000', backgroundOpacity: 60 };
         let currentSubtitleSettings = { ...defaultSubtitleSettings };
