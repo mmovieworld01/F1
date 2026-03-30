@@ -70,7 +70,7 @@
         @media (max-width: 768px) { .video-js.vjs-fullscreen .custom-volume-container, .video-js:-webkit-full-screen .custom-volume-container, .video-js:-moz-full-screen .custom-volume-container, .video-js:-ms-fullscreen .custom-volume-container { display: flex !important; gap: 6px; } }
         .video-js .vjs-big-play-button { font-size: 2.5em; line-height: 2em; height: 2em; width: 2em; border-radius: 50%; background-color: #5f2d0c !important; border: none !important; margin-left: -1em; margin-top: -1em; transition: all 0.3s ease; backdrop-filter: blur(10px); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); }
         .video-js .vjs-big-play-button:hover { background-color: #804515 !important; transform: scale(1.1); box-shadow: 0 6px 25px rgba(0, 0, 0, 0.4); }
-        .loading-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); display: flex; align-items: center; justify-content: center; z-index: 1000; transition: opacity 0.3s ease; }
+        .loading-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); display: flex; align-items: center; justify-content: center; z-index: 1000; transition: opacity 0.3s ease; pointer-events: none; }
         .loading-overlay.hidden { display: none; }
         /* Force the Lottie canvas to stay visually centered even when resized in JS */
         .lottie-loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: auto; height: auto; }
@@ -164,7 +164,7 @@
         function initLottie() { const container = document.getElementById('lottieLoading'); if (!container || typeof lottie === 'undefined') return false; const data = getLottieDataForViewport(); const mode = getLottieModeLabel(); if (lottieAnim && currentLottieMode === mode) return true; if (lottieAnim) { try { lottieAnim.destroy(); } catch (err) {} } applyLottieSize(data); currentLottieMode = mode; lottieAnim = lottie.loadAnimation({ container: container, renderer: 'canvas', loop: true, autoplay: false, animationData: data, rendererSettings: { preserveAspectRatio: 'xMidYMid meet', clearCanvas: true } }); lottieAnim.addEventListener('DOMLoaded', function() { try { lottieAnim.goToAndPlay(0, true); lottieAnim.resize(); } catch (err) {} }); return true; }
         function ensureLottie() { if (initLottie()) { if (lottieInitTimer) { clearTimeout(lottieInitTimer); lottieInitTimer = null; } return; } if (!lottieInitTimer) { lottieInitTimer = setTimeout(function() { lottieInitTimer = null; ensureLottie(); }, 200); } }
         function hideAllOverlays() { document.getElementById('loadingOverlay').style.display = 'none'; document.getElementById('errorMessage').style.display = 'none'; if (lottieAnim) lottieAnim.stop(); }
-        function loadAllSubtitles() { CONFIG.subtitleTracks.forEach((track, index) => { fetch(track.src).then(r => r.text()).then(vttText => { subtitleDataCache[index] = parseVTT(vttText); console.log('Loaded subtitle ' + index + ' (' + track.label + '): ' + subtitleDataCache[index].length + ' cues'); if (index === 0) startSubtitleDisplay(); }).catch(e => console.error('Failed to load subtitle ' + index + ':', e)); }); }
+        function loadAllSubtitles() { CONFIG.subtitleTracks.forEach((track, index) => { fetch(track.src).then(r => r.text()).then(vttText => { subtitleDataCache[index] = parseVTT(vttText); if (index === 0) startSubtitleDisplay(); }).catch(e => console.error('Failed to load subtitle ' + index + ':', e)); }); }
         function parseVTT(vttText) { const lines = vttText.split('\n'); const cues = []; let currentCue = null; for (let i = 0; i < lines.length; i++) { const line = lines[i].trim(); if (!line || line === 'WEBVTT') continue; if (line.includes(' --> ')) { if (currentCue) cues.push(currentCue); const parts = line.split(' --> '); currentCue = { start: parseTimeStamp(parts[0]), end: parseTimeStamp(parts[1]), text: '' }; } else if (currentCue && line) { if (currentCue.text) currentCue.text += '\n'; currentCue.text += line; } } if (currentCue) cues.push(currentCue); return cues; }
         function parseTimeStamp(timeStr) { const parts = timeStr.split(':'); let h = 0, m = 0, s = 0; if (parts.length === 3) { h = parseInt(parts[0]); m = parseInt(parts[1]); s = parseFloat(parts[2]); } else if (parts.length === 2) { m = parseInt(parts[0]); s = parseFloat(parts[1]); } return h * 3600 + m * 60 + s; }
         function startSubtitleDisplay() { if (subtitleInterval) clearInterval(subtitleInterval); subtitleInterval = setInterval(updateSubtitleDisplay, 100); }
@@ -172,6 +172,7 @@
 
         function initializePlayer() {
             player = videojs('videoPlayer', { fluid: true, responsive: true, playbackRates: [0.5, 1, 1.25, 1.5, 2], controls: true, preload: 'auto', autoplay: CONFIG.autoplay, muted: CONFIG.muted, html5: { hls: { enableLowInitialPlaylist: true, smoothQualityChange: true, overrideNative: true } } });
+            if (videojs && videojs.log && typeof videojs.log.level === 'function') { videojs.log.level('off'); }
             player.on('loadstart', showLoading);
             player.on('waiting', showLoading);
             player.on('seeking', showLoading);
@@ -182,7 +183,7 @@
             showLoading();
             player.src({ src: getSourceForQuality(currentQualityLabel), type: 'application/vnd.apple.mpegurl' });
             applyQualityLabel(currentQualityLabel);
-            player.ready(function() { console.log('Player is ready'); hideLoading(); });
+            player.ready(function() { hideLoading(); });
             player.on('play', function() { startSubtitleDisplay(); hideControlsDelayed(); });
             player.on('pause', function() { cancelHideControls(); showControls(); });
             player.on('error', function(e) { console.error('Player error:', e); showError('Failed to load video stream.'); });
@@ -274,3 +275,8 @@
     </script>
 </body>
 </html>
+
+
+
+
+
