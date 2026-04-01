@@ -70,11 +70,20 @@
         @media (max-width: 768px) { .video-js.vjs-fullscreen .custom-volume-container, .video-js:-webkit-full-screen .custom-volume-container, .video-js:-moz-full-screen .custom-volume-container, .video-js:-ms-fullscreen .custom-volume-container { display: flex !important; gap: 6px; } }
         .video-js .vjs-big-play-button { font-size: 2.5em; line-height: 2em; height: 2em; width: 2em; border-radius: 50%; background-color: #5f2d0c !important; border: none !important; margin-left: -1em; margin-top: -1em; transition: all 0.3s ease; backdrop-filter: blur(10px); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); }
         .video-js .vjs-big-play-button:hover { background-color: #804515 !important; transform: scale(1.1); box-shadow: 0 6px 25px rgba(0, 0, 0, 0.4); }
-        .loading-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); display: flex; align-items: center; justify-content: center; z-index: 1000; transition: opacity 0.3s ease; pointer-events: none; }
+        .loading-overlay { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.8); display: flex; align-items: center; justify-content: center; z-index: 1000; transition: opacity 0.3s ease; pointer-events: none; }
         .loading-overlay * { pointer-events: none !important; }
         .loading-overlay.hidden { display: none; }
-        /* Force the Lottie canvas to stay visually centered even when resized in JS */
-        .lottie-loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: auto; height: auto; max-width: 50vw; max-height: 50vh; }
+        /* Use a CSS spinner so the loader stays centered and thick even if Lottie fails. */
+        .lottie-loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(18vw, 140px); height: min(18vw, 140px); min-width: 84px; min-height: 84px; }
+        .lottie-loading::before, .lottie-loading::after { content: ''; position: absolute; inset: 0; border-radius: 50%; }
+        .lottie-loading::before { border: 12px solid rgba(95, 45, 12, 0.55); }
+        .lottie-loading::after { border: 12px solid transparent; border-top-color: #f3cb83; border-right-color: #f3cb83; box-shadow: 0 0 14px rgba(243, 203, 131, 0.2); animation: loader-spin 0.9s linear infinite; }
+        .lottie-loading canvas, .lottie-loading svg { display: none !important; }
+        @media (max-width: 768px) {
+            .lottie-loading { width: min(24vw, 112px); height: min(24vw, 112px); min-width: 72px; min-height: 72px; }
+            .lottie-loading::before, .lottie-loading::after { border-width: 10px; }
+        }
+        @keyframes loader-spin { to { transform: rotate(360deg); } }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .error-message { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #fff; text-align: center; z-index: 1001; background: rgba(231, 76, 60, 0.9); padding: 20px; border-radius: 10px; display: none; }
         .subtitle-settings { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0, 0, 0, 0.95); border: 1px solid #333; border-radius: 10px; width: 400px; max-width: 90vw; max-height: 85vh; z-index: 2147483647; display: none; color: #fff; font-family: 'Segoe UI', sans-serif; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8); overflow: hidden; flex-direction: column; }
@@ -104,7 +113,7 @@
     <div class="player-container">
         <div class="loading-overlay" id="loadingOverlay"><div id="lottieLoading" class="lottie-loading"></div></div>
         <div class="error-message" id="errorMessage"><h3>Playback Error</h3><p id="errorText">Unable to load video. Please try again.</p><button onclick="retryLoad()" style="margin-top: 10px; padding: 8px 16px; background: #fff; border: none; border-radius: 5px; cursor: pointer;">Retry</button></div>
-        <video id="videoPlayer" class="video-js vjs-default-skin" controls preload="auto" data-setup='{}'><p class="vjs-no-js">To view this video please enable JavaScript.</p></video>
+        <video id="videoPlayer" class="video-js vjs-default-skin" controls preload="auto"><p class="vjs-no-js">To view this video please enable JavaScript.</p></video>
         <div class="custom-subtitle-overlay" id="customSubtitles"><div class="custom-subtitle-text" id="subtitleText" style="display: none;"></div></div>
         <div class="custom-control-bar" id="customControlBar">
             <div class="custom-progress-container"><div class="custom-progress-bar" id="progressBar"><div class="custom-progress-buffer" id="progressBuffer"></div><div class="custom-progress-played" id="progressPlayed"><div class="custom-progress-handle" id="progressHandle"></div></div></div><div class="custom-time-tooltip" id="timeTooltip">00:00</div></div>
@@ -160,6 +169,8 @@
         let lottieAnim = null;
         let lottieInitTimer = null;
         let currentLottieMode = null;
+        let loadingVisibleSince = 0;
+        let loadingHideTimer = null;
         function getLottieDataForViewport() { const isMobile = window.matchMedia('(max-width: 768px)').matches; return isMobile ? LOTTIE_DATA_MOB : LOTTIE_DATA_PC; }
         function getLottieModeLabel() { return window.matchMedia('(max-width: 768px)').matches ? 'mob' : 'pc'; }
         // Size and center the Lottie canvas
@@ -218,14 +229,39 @@
         function showLoading() {
             const overlay = document.getElementById('loadingOverlay');
             if (!overlay) return;
+            if (loadingHideTimer) {
+                clearTimeout(loadingHideTimer);
+                loadingHideTimer = null;
+            }
+            loadingVisibleSince = Date.now();
             overlay.classList.remove('hidden');
             overlay.style.display = 'flex';
-            ensureLottie();
-            if (lottieAnim) {
-                try { lottieAnim.goToAndPlay(0, true); lottieAnim.resize(); } catch (err) {}
+        }
+        function hideLoading() {
+            const overlay = document.getElementById('loadingOverlay');
+            if (!overlay) return;
+            const hide = function() {
+                overlay.classList.add('hidden');
+                overlay.style.display = 'none';
+                if (lottieAnim) lottieAnim.stop();
+                if (lottieInitTimer) {
+                    clearTimeout(lottieInitTimer);
+                    lottieInitTimer = null;
+                }
+                loadingHideTimer = null;
+            };
+            const minVisibleMs = 350;
+            const elapsed = loadingVisibleSince ? (Date.now() - loadingVisibleSince) : minVisibleMs;
+            const delay = Math.max(0, minVisibleMs - elapsed);
+            if (loadingHideTimer) {
+                clearTimeout(loadingHideTimer);
+            }
+            if (delay === 0) {
+                hide();
+            } else {
+                loadingHideTimer = setTimeout(hide, delay);
             }
         }
-        function hideLoading() { const overlay = document.getElementById('loadingOverlay'); if (!overlay) return; overlay.classList.add('hidden'); overlay.style.display = 'none'; if (lottieAnim) lottieAnim.stop(); if (lottieInitTimer) { clearTimeout(lottieInitTimer); lottieInitTimer = null; } }
         function showError(msg) { hideLoading(); document.getElementById('errorText').textContent = msg; document.getElementById('errorMessage').style.display = 'block'; }
         function retryLoad() { hideError(); showLoading(); player.src({ src: getSourceForQuality(currentQualityLabel), type: 'application/vnd.apple.mpegurl' }); player.load(); }
         function hideError() { document.getElementById('errorMessage').style.display = 'none'; }
