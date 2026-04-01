@@ -201,7 +201,7 @@
             player.src({ src: getSourceForQuality(currentQualityLabel), type: 'application/vnd.apple.mpegurl' });
             applyQualityLabel(currentQualityLabel);
             showLoading();
-            player.ready(function() { hideLoading(); });
+            player.ready(function() { /* leave loader until canplay/playing */ });
             player.on('play', function() { startSubtitleDisplay(); hideControlsDelayed(); });
             player.on('pause', function() { cancelHideControls(); showControls(); });
             player.on('error', function(e) { console.error('Player error:', e); showError('Failed to load video stream.'); });
