@@ -190,12 +190,17 @@
         function initializePlayer() {
             player = videojs('videoPlayer', { fluid: true, responsive: true, playbackRates: [0.5, 1, 1.25, 1.5, 2], controls: true, preload: 'auto', autoplay: CONFIG.autoplay, muted: CONFIG.muted, html5: { hls: { enableLowInitialPlaylist: true, smoothQualityChange: true, overrideNative: true } } });
             if (videojs && videojs.log && typeof videojs.log.level === 'function') { videojs.log.level('off'); }
+            // show loader on start/buffer, hide when ready
+            player.on('loadstart', showLoading);
+            player.on('waiting', showLoading);
+            player.on('seeking', showLoading);
             player.on('playing', hideLoading);
             player.on('canplay', hideLoading);
             player.on('loadeddata', hideLoading);
             player.on('error', hideLoading);
             player.src({ src: getSourceForQuality(currentQualityLabel), type: 'application/vnd.apple.mpegurl' });
             applyQualityLabel(currentQualityLabel);
+            showLoading();
             player.ready(function() { hideLoading(); });
             player.on('play', function() { startSubtitleDisplay(); hideControlsDelayed(); });
             player.on('pause', function() { cancelHideControls(); showControls(); });
