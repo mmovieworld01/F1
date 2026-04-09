@@ -68,21 +68,17 @@
         .icon-speed { font-family: Arial, sans-serif; font-style: normal; font-size: 11px; font-weight: bold; }
         @media (max-width: 768px) { .custom-control-bar { padding: 10px 15px 15px 15px; bottom: 50px; } .custom-controls { gap: 10px; } .custom-volume-container { display: none; } .custom-volume-slider { width: 60px; } .custom-time-display { font-size: 12px; min-width: 60px; } }
         @media (max-width: 768px) { .video-js.vjs-fullscreen .custom-volume-container, .video-js:-webkit-full-screen .custom-volume-container, .video-js:-moz-full-screen .custom-volume-container, .video-js:-ms-fullscreen .custom-volume-container { display: flex !important; gap: 6px; } }
-        .video-js .vjs-big-play-button { font-size: 2.5em; line-height: 2em; height: 2em; width: 2em; border-radius: 50%; background-color: #5f2d0c !important; border: none !important; margin-left: -1em; margin-top: -1em; transition: all 0.3s ease; backdrop-filter: blur(10px); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); }
-        .video-js .vjs-big-play-button:hover { background-color: #804515 !important; transform: scale(1.1); box-shadow: 0 6px 25px rgba(0, 0, 0, 0.4); }
+        .video-js .vjs-big-play-button { top: 50% !important; left: 50% !important; display: flex; align-items: center; justify-content: center; padding: 0 !important; font-size: 2.5em; line-height: 2em; height: 2em; width: 2em; border-radius: 50%; background-color: #5f2d0c !important; border: none !important; margin: 0 !important; transform: translate(-50%, -50%); transition: background-color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease; backdrop-filter: blur(10px); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); }
+        .video-js .vjs-big-play-button:hover { background-color: #804515 !important; transform: translate(-50%, -50%) scale(1.1); box-shadow: 0 6px 25px rgba(0, 0, 0, 0.4); }
         .loading-overlay { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.8); display: flex; align-items: center; justify-content: center; z-index: 1000; transition: opacity 0.3s ease; pointer-events: none; }
         .loading-overlay * { pointer-events: none !important; }
         .loading-overlay.hidden { display: none; }
-        /* Use a CSS spinner so the loader stays centered and thick even if Lottie fails. */
         .lottie-loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 62px; height: 62px; min-width: 62px; min-height: 62px; }
         .lottie-loading::before, .lottie-loading::after { content: ''; position: absolute; inset: 0; border-radius: 50%; }
         .lottie-loading::before { border: 5px solid rgba(95, 45, 12, 0.55); }
         .lottie-loading::after { border: 5px solid transparent; border-top-color: #f3cb83; border-right-color: #f3cb83; box-shadow: 0 0 14px rgba(243, 203, 131, 0.2); animation: loader-spin 0.9s linear infinite; }
         .lottie-loading canvas, .lottie-loading svg { display: none !important; }
-        @media (max-width: 768px) {
-            .lottie-loading { width: 42px; height: 42px; min-width: 42px; min-height: 42px; }
-            .lottie-loading::before, .lottie-loading::after { border-width: 5px; }
-        }
+        @media (max-width: 768px) { .lottie-loading { width: 42px; height: 42px; min-width: 42px; min-height: 42px; } .lottie-loading::before, .lottie-loading::after { border-width: 5px; } }
         @keyframes loader-spin { to { transform: rotate(360deg); } }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .error-message { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #fff; text-align: center; z-index: 1001; background: rgba(231, 76, 60, 0.9); padding: 20px; border-radius: 10px; display: none; }
@@ -111,7 +107,7 @@
 </head>
 <body>
     <div class="player-container">
-        <div class="loading-overlay" id="loadingOverlay"><div id="lottieLoading" class="lottie-loading"></div></div>
+        <div class="loading-overlay hidden" id="loadingOverlay"><div id="lottieLoading" class="lottie-loading"></div></div>
         <div class="error-message" id="errorMessage"><h3>Playback Error</h3><p id="errorText">Unable to load video. Please try again.</p><button onclick="retryLoad()" style="margin-top: 10px; padding: 8px 16px; background: #fff; border: none; border-radius: 5px; cursor: pointer;">Retry</button></div>
         <video id="videoPlayer" class="video-js vjs-default-skin" controls preload="auto"><p class="vjs-no-js">To view this video please enable JavaScript.</p></video>
         <div class="custom-subtitle-overlay" id="customSubtitles"><div class="custom-subtitle-text" id="subtitleText" style="display: none;"></div></div>
@@ -123,7 +119,8 @@
                 <div class="custom-controls-right">
                     <div class="custom-dropdown" id="captionDropdown"><button class="custom-btn" id="captionBtn"><span class="icon-cc"></span></button><div class="custom-dropdown-menu">
                             <div class="custom-dropdown-item" data-track="off">Off</div>
-                            <div class="custom-dropdown-item active" data-track="0" data-label="Malayalam">Malayalam</div>
+                            <div class="custom-dropdown-item active" data-track="0" data-label="English">English</div>
+                            <div class="custom-dropdown-item" data-track="1" data-label="Malayalam">Malayalam</div>
                             <div class="custom-dropdown-item" data-track="settings">Caption Settings</div>
                     </div></div>
                     <div class="custom-dropdown" id="audioDropdown"><button class="custom-btn" id="audioBtn"><span class="icon-audio"></span></button><div class="custom-dropdown-menu"><div class="custom-dropdown-item active" data-audio="default">Default</div></div></div>
@@ -158,38 +155,18 @@
     <script src="https://cdn.jsdelivr.net/npm/@videojs/http-streaming@3.8.0/dist/videojs-http-streaming.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
     <script>
-        const CONFIG = { videoSources: [{"label": "Auto", "src": "master.m3u8"}, {"label": "1080p", "src": "video_1080p.m3u8"}, {"label": "720p", "src": "video_720p.m3u8"}, {"label": "480p", "src": "video_480p.m3u8"}], subtitleTracks: [{"index": 0, "label": "Malayalam", "code": "und", "src": "sub_0.vtt"}], autoplay: false, muted: false };
+        const CONFIG = { videoSources: [{"label": "Auto", "src": "master.m3u8"}, {"label": "1080p", "src": "video_1080p.m3u8"}, {"label": "720p", "src": "video_720p.m3u8"}, {"label": "480p", "src": "video_480p.m3u8"}], subtitleTracks: [{"index": 0, "label": "English", "code": "und", "src": "sub_0.vtt"}, {"index": 1, "label": "Malayalam", "code": "und", "src": "sub_1.vtt"}], autoplay: false, muted: false };
         let player, currentSubtitleIndex = CONFIG.subtitleTracks.length > 0 ? 0 : -1, subtitleDataCache = {}, subtitleInterval = null, controlBarTimeout = null, isDragging = false, currentQualityLabel = 'Auto';
         const defaultSubtitleSettings = { fontFamily: 'Arial, sans-serif', fontSize: '1.4em', fontWeight: 'normal', textColor: '#ffffff', backgroundColor: '#000000', backgroundOpacity: 60 };
         let currentSubtitleSettings = { ...defaultSubtitleSettings };
 
         document.addEventListener('DOMContentLoaded', function() { initializePlayer(); setupEventListeners(); loadSubtitleSettings(); initializeSubtitleSettingsPanel(); initializeCustomControls(); loadAllSubtitles(); });
-        const LOTTIE_DATA_PC = {"v":"5.7.14","fr":30,"ip":0,"op":60,"w":240,"h":240,"nm":"KOTTA LOADING PC","ddd":0,"assets":[],"layers":[{"ddd":0,"ind":1,"ty":4,"nm":"Shape Layer 2","parent":3,"sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":0,"s":[0]},{"t":60,"s":[360]}],"ix":10},"p":{"a":0,"k":[0,0,0],"ix":2,"l":2},"a":{"a":0,"k":[-11,-13,0],"ix":1,"l":2},"s":{"a":0,"k":[100,100,100],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"d":1,"ty":"el","s":{"a":0,"k":[430,430],"ix":2},"p":{"a":0,"k":[0,0],"ix":3},"nm":"Ellipse Path 1","mn":"ADBE Vector Shape - Ellipse","hd":false},{"ty":"tm","s":{"a":0,"k":0,"ix":1},"e":{"a":0,"k":100,"ix":2},"o":{"a":0,"k":0,"ix":3},"m":1,"ix":2,"nm":"Trim Paths 1","mn":"ADBE Vector Filter - Trim","hd":false},{"ty":"st","c":{"a":0,"k":[0.952941176471,0.796078431373,0.513725490196,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":180,"ix":5},"lc":2,"lj":1,"ml":4,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"tr","p":{"a":0,"k":[-11,-13],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Ellipse 1","np":4,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":60,"st":0,"bm":0},{"ddd":0,"ind":2,"ty":4,"nm":"Shape Layer 1","parent":3,"sr":1,"ks":{"o":{"a":0,"k":50,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[0,0,0],"ix":2,"l":2},"a":{"a":0,"k":[-11,-13,0],"ix":1,"l":2},"s":{"a":0,"k":[100,100,100],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"d":1,"ty":"el","s":{"a":0,"k":[430,430],"ix":2},"p":{"a":0,"k":[0,0],"ix":3},"nm":"Ellipse Path 1","mn":"ADBE Vector Shape - Ellipse","hd":false},{"ty":"st","c":{"a":0,"k":[0.372549019608,0.176470588235,0.047058823529,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":180,"ix":5},"lc":1,"lj":1,"ml":4,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"tr","p":{"a":0,"k":[-11,-13],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Ellipse 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":60,"st":0,"bm":0},{"ddd":0,"ind":3,"ty":3,"nm":"Null 1","sr":1,"ks":{"o":{"a":0,"k":0,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[120,120,0],"ix":2,"l":2},"a":{"a":0,"k":[0,0,0],"ix":1,"l":2},"s":{"a":0,"k":[51,51,100],"ix":6,"l":2}},"ao":0,"ip":0,"op":60,"st":0,"bm":0}],"markers":[]};
-        const LOTTIE_DATA_MOB = {"v":"5.7.14","fr":30,"ip":0,"op":60,"w":160,"h":160,"nm":"KOTTA LOADING MOB","ddd":0,"assets":[],"layers":[{"ddd":0,"ind":1,"ty":4,"nm":"Shape Layer 2","parent":3,"sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":0,"s":[0]},{"t":60,"s":[360]}],"ix":10},"p":{"a":0,"k":[0,0,0],"ix":2,"l":2},"a":{"a":0,"k":[-11,-13,0],"ix":1,"l":2},"s":{"a":0,"k":[100,100,100],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"d":1,"ty":"el","s":{"a":0,"k":[430,430],"ix":2},"p":{"a":0,"k":[0,0],"ix":3},"nm":"Ellipse Path 1","mn":"ADBE Vector Shape - Ellipse","hd":false},{"ty":"tm","s":{"a":0,"k":0,"ix":1},"e":{"a":0,"k":100,"ix":2},"o":{"a":0,"k":0,"ix":3},"m":1,"ix":2,"nm":"Trim Paths 1","mn":"ADBE Vector Filter - Trim","hd":false},{"ty":"st","c":{"a":0,"k":[0.952941176471,0.796078431373,0.513725490196,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":140,"ix":5},"lc":2,"lj":1,"ml":4,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"tr","p":{"a":0,"k":[-11,-13],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Ellipse 1","np":4,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":60,"st":0,"bm":0},{"ddd":0,"ind":2,"ty":4,"nm":"Shape Layer 1","parent":3,"sr":1,"ks":{"o":{"a":0,"k":50,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[0,0,0],"ix":2,"l":2},"a":{"a":0,"k":[-11,-13,0],"ix":1,"l":2},"s":{"a":0,"k":[100,100,100],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"d":1,"ty":"el","s":{"a":0,"k":[430,430],"ix":2},"p":{"a":0,"k":[0,0],"ix":3},"nm":"Ellipse Path 1","mn":"ADBE Vector Shape - Ellipse","hd":false},{"ty":"st","c":{"a":0,"k":[0.372549019608,0.176470588235,0.047058823529,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":140,"ix":5},"lc":1,"lj":1,"ml":4,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"tr","p":{"a":0,"k":[-11,-13],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Ellipse 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":60,"st":0,"bm":0},{"ddd":0,"ind":3,"ty":3,"nm":"Null 1","sr":1,"ks":{"o":{"a":0,"k":0,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[80,80,0],"ix":2,"l":2},"a":{"a":0,"k":[0,0,0],"ix":1,"l":2},"s":{"a":0,"k":[34,34,100],"ix":6,"l":2}},"ao":0,"ip":0,"op":60,"st":0,"bm":0}],"markers":[]};
+        const LOTTIE_DATA = {"v":"5.7.1","fr":30,"ip":0,"op":60,"w":500,"h":500,"nm":"KOTTA LOADING","ddd":0,"assets":[],"layers":[{"ddd":0,"ind":1,"ty":4,"nm":"Shape Layer 2","sr":1,"ks":{"o":{"a":0,"k":100},"r":{"a":1,"k":[{"t":0,"s":0,"e":360,"h":0},{"t":60,"s":360,"e":360,"h":0}]},"p":{"a":0,"k":[250,250,0]},"a":{"a":0,"k":[0,0,0]},"s":{"a":0,"k":[100,100,100]}},"ip":0,"op":60,"st":0,"bm":0,"shapes":[{"ty":"gr","nm":"Ellipse 1","it":[{"ty":"el","nm":"Ellipse Path 1","s":{"a":0,"k":[430,430]},"p":{"a":0,"k":[0,0]}},{"ty":"tm","nm":"Trim Paths 1","s":{"a":0,"k":0},"e":{"a":1,"k":[{"t":0,"s":0,"e":25,"h":0},{"t":30,"s":25,"e":0,"h":0},{"t":60,"s":0,"e":0,"h":0}]},"o":{"a":0,"k":0},"m":1},{"ty":"st","nm":"Stroke 1","c":{"a":0,"k":[0.95294117647059,0.79607843137255,0.51372549019608,1]},"o":{"a":0,"k":100},"w":{"a":0,"k":26}},{"ty":"fl","nm":"Fill 1","c":{"a":0,"k":[1,1,1,1]},"o":{"a":0,"k":100}}]}]},{"ddd":0,"ind":2,"ty":4,"nm":"Shape Layer 1","sr":1,"ks":{"o":{"a":0,"k":50},"r":{"a":0,"k":0},"p":{"a":0,"k":[250,250,0]},"a":{"a":0,"k":[0,0,0]},"s":{"a":0,"k":[100,100,100]}},"ip":0,"op":60,"st":0,"bm":0,"shapes":[{"ty":"gr","nm":"Ellipse 1","it":[{"ty":"el","nm":"Ellipse Path 1","s":{"a":0,"k":[430,430]},"p":{"a":0,"k":[0,0]}},{"ty":"st","nm":"Stroke 1","c":{"a":0,"k":[0.37254901960784,0.17647058823529,0.04705882352941,1]},"o":{"a":0,"k":100},"w":{"a":0,"k":26}},{"ty":"fl","nm":"Fill 1","c":{"a":0,"k":[1,1,1,1]},"o":{"a":0,"k":100}}]}]}]};
         let lottieAnim = null;
         let lottieInitTimer = null;
-        let currentLottieMode = null;
         let loadingVisibleSince = 0;
         let loadingHideTimer = null;
-        function getLottieDataForViewport() { const isMobile = window.matchMedia('(max-width: 768px)').matches; return isMobile ? LOTTIE_DATA_MOB : LOTTIE_DATA_PC; }
-        function getLottieModeLabel() { return window.matchMedia('(max-width: 768px)').matches ? 'mob' : 'pc'; }
-        // Size and center the Lottie canvas
-        function applyLottieSize(data) {
-            const container = document.getElementById('lottieLoading');
-            if (!container || !data) return;
-            const isMobile = window.matchMedia('(max-width: 768px)').matches;
-            const scale = isMobile ? 1.0 : 1.2;
-            const maxPx = isMobile ? 480 : 640;
-            const maxW = Math.floor(window.innerWidth * 0.85);
-            const maxH = Math.floor(window.innerHeight * 0.85);
-            const baseW = data.w || 240;
-            const baseH = data.h || 240;
-            const w = Math.min(Math.round(baseW * scale), maxPx, maxW);
-            const h = Math.min(Math.round(baseH * scale), maxPx, maxH);
-            container.style.width = w + 'px';
-            container.style.height = h + 'px';
-        }
-        function initLottie() { const container = document.getElementById('lottieLoading'); if (!container || typeof lottie === 'undefined') return false; const data = getLottieDataForViewport(); const mode = getLottieModeLabel(); if (lottieAnim && currentLottieMode === mode) return true; if (lottieAnim) { try { lottieAnim.destroy(); } catch (err) {} } applyLottieSize(data); currentLottieMode = mode; lottieAnim = lottie.loadAnimation({ container: container, renderer: 'canvas', loop: true, autoplay: false, animationData: data, rendererSettings: { preserveAspectRatio: 'xMidYMid meet', clearCanvas: true } }); lottieAnim.addEventListener('DOMLoaded', function() { try { lottieAnim.goToAndPlay(0, true); lottieAnim.resize(); } catch (err) {} }); return true; }
+        function initLottie() { const container = document.getElementById('lottieLoading'); if (!container || typeof lottie === 'undefined') return false; if (lottieAnim) { try { lottieAnim.destroy(); } catch (err) {} } lottieAnim = lottie.loadAnimation({ container: container, renderer: 'canvas', loop: true, autoplay: false, animationData: LOTTIE_DATA, rendererSettings: { preserveAspectRatio: 'xMidYMid meet', clearCanvas: true } }); lottieAnim.addEventListener('DOMLoaded', function() { try { lottieAnim.goToAndPlay(0, true); lottieAnim.resize(); } catch (err) {} }); return true; }
         function ensureLottie() { if (initLottie()) { if (lottieInitTimer) { clearTimeout(lottieInitTimer); lottieInitTimer = null; } return; } if (!lottieInitTimer) { lottieInitTimer = setTimeout(function() { lottieInitTimer = null; ensureLottie(); }, 200); } }
         function hideAllOverlays() { document.getElementById('loadingOverlay').style.display = 'none'; document.getElementById('errorMessage').style.display = 'none'; if (lottieAnim) lottieAnim.stop(); }
         function loadAllSubtitles() { CONFIG.subtitleTracks.forEach((track, index) => { fetch(track.src).then(r => r.text()).then(vttText => { subtitleDataCache[index] = parseVTT(vttText); if (index === 0) startSubtitleDisplay(); }).catch(e => console.error('Failed to load subtitle ' + index + ':', e)); }); }
@@ -201,20 +178,29 @@
         function initializePlayer() {
             player = videojs('videoPlayer', { fluid: true, responsive: true, playbackRates: [0.5, 1, 1.25, 1.5, 2], controls: true, preload: 'auto', autoplay: CONFIG.autoplay, muted: CONFIG.muted, html5: { hls: { enableLowInitialPlaylist: true, smoothQualityChange: true, overrideNative: true } } });
             if (videojs && videojs.log && typeof videojs.log.level === 'function') { videojs.log.level('off'); }
-            // show loader on start/buffer, hide when ready
-            player.on('loadstart', showLoading);
+            player.on('loadstart', function() { forceHideBigPlay = false; updateBigPlayVisibility(); showLoading(); });
             player.on('waiting', showLoading);
             player.on('seeking', showLoading);
-            player.on('playing', hideLoading);
+            player.on('playing', function() { forceHideBigPlay = true; updateBigPlayVisibility(); hideLoading(); });
             player.on('canplay', hideLoading);
             player.on('loadeddata', hideLoading);
             player.on('error', hideLoading);
             player.src({ src: getSourceForQuality(currentQualityLabel), type: 'application/vnd.apple.mpegurl' });
             applyQualityLabel(currentQualityLabel);
             showLoading();
-            player.ready(function() { /* leave loader until canplay/playing */ });
-            player.on('play', function() { startSubtitleDisplay(); hideControlsDelayed(); });
-            player.on('pause', function() { cancelHideControls(); showControls(); });
+            player.ready(function() {
+                const bigPlay = document.querySelector('.vjs-big-play-button');
+                if (bigPlay) {
+                    bigPlay.addEventListener('click', function() {
+                        forceHideBigPlay = true;
+                        updateBigPlayVisibility();
+                    });
+                }
+                updateBigPlayVisibility();
+            });
+            player.on('play', function() { forceHideBigPlay = true; updateBigPlayVisibility(); startSubtitleDisplay(); hideControlsDelayed(); });
+            player.on('pause', function() { updateBigPlayVisibility(); cancelHideControls(); showControls(); });
+            player.on('ended', function() { forceHideBigPlay = false; updateBigPlayVisibility(); cancelHideControls(); showControls(); });
             player.on('error', function(e) { console.error('Player error:', e); showError('Failed to load video stream.'); });
             player.on('fullscreenchange', handleFullscreenSubtitles);
             setupKeyboardShortcuts();
@@ -226,42 +212,8 @@
         function togglePlayPause() { player.paused() ? player.play() : player.pause(); }
         function toggleMute() { player.muted(!player.muted()); }
         function toggleFullscreen() { player.isFullscreen() ? player.exitFullscreen() : player.requestFullscreen(); }
-        function showLoading() {
-            const overlay = document.getElementById('loadingOverlay');
-            if (!overlay) return;
-            if (loadingHideTimer) {
-                clearTimeout(loadingHideTimer);
-                loadingHideTimer = null;
-            }
-            loadingVisibleSince = Date.now();
-            overlay.classList.remove('hidden');
-            overlay.style.display = 'flex';
-        }
-        function hideLoading() {
-            const overlay = document.getElementById('loadingOverlay');
-            if (!overlay) return;
-            const hide = function() {
-                overlay.classList.add('hidden');
-                overlay.style.display = 'none';
-                if (lottieAnim) lottieAnim.stop();
-                if (lottieInitTimer) {
-                    clearTimeout(lottieInitTimer);
-                    lottieInitTimer = null;
-                }
-                loadingHideTimer = null;
-            };
-            const minVisibleMs = 350;
-            const elapsed = loadingVisibleSince ? (Date.now() - loadingVisibleSince) : minVisibleMs;
-            const delay = Math.max(0, minVisibleMs - elapsed);
-            if (loadingHideTimer) {
-                clearTimeout(loadingHideTimer);
-            }
-            if (delay === 0) {
-                hide();
-            } else {
-                loadingHideTimer = setTimeout(hide, delay);
-            }
-        }
+        function showLoading() { const overlay = document.getElementById('loadingOverlay'); if (!overlay) return; if (loadingHideTimer) { clearTimeout(loadingHideTimer); loadingHideTimer = null; } loadingVisibleSince = Date.now(); overlay.classList.remove('hidden'); overlay.style.display = 'flex'; }
+        function hideLoading() { const overlay = document.getElementById('loadingOverlay'); if (!overlay) return; const hide = function() { overlay.classList.add('hidden'); overlay.style.display = 'none'; if (lottieAnim) lottieAnim.stop(); if (lottieInitTimer) { clearTimeout(lottieInitTimer); lottieInitTimer = null; } loadingHideTimer = null; }; const minVisibleMs = 350; const elapsed = loadingVisibleSince ? (Date.now() - loadingVisibleSince) : minVisibleMs; const delay = Math.max(0, minVisibleMs - elapsed); if (loadingHideTimer) { clearTimeout(loadingHideTimer); } if (delay === 0) { hide(); } else { loadingHideTimer = setTimeout(hide, delay); } }
         function showError(msg) { hideLoading(); document.getElementById('errorText').textContent = msg; document.getElementById('errorMessage').style.display = 'block'; }
         function retryLoad() { hideError(); showLoading(); player.src({ src: getSourceForQuality(currentQualityLabel), type: 'application/vnd.apple.mpegurl' }); player.load(); }
         function hideError() { document.getElementById('errorMessage').style.display = 'none'; }
@@ -309,7 +261,13 @@
         }
 
         function showControls() { document.getElementById('customControlBar').classList.add('show'); document.querySelector('.player-container').classList.remove('hide-cursor'); const vjs = document.querySelector('.video-js'); if (vjs) vjs.classList.remove('hide-cursor'); }
-        function updateBigPlayVisibility() { const bigPlay = document.querySelector('.vjs-big-play-button'); if (!bigPlay) return; if (isQualitySwitching) { bigPlay.style.display = 'none'; } else { bigPlay.style.display = ''; } }
+        function updateBigPlayVisibility() {
+            const bigPlay = document.querySelector('.vjs-big-play-button');
+            if (!bigPlay || !player) return;
+            const hasStarted = typeof player.hasStarted === 'function' ? player.hasStarted() : ((player.currentTime && player.currentTime() > 0) || false);
+            const shouldShow = !isQualitySwitching && !forceHideBigPlay && (!hasStarted || player.ended());
+            bigPlay.style.display = shouldShow ? 'flex' : 'none';
+        }
         function cancelHideControls() { if (controlBarTimeout) { clearTimeout(controlBarTimeout); controlBarTimeout = null; } }
         function hideControlsDelayed() { cancelHideControls(); controlBarTimeout = setTimeout(function() { if (!isDragging && player && !player.paused()) { document.getElementById('customControlBar').classList.remove('show'); document.querySelector('.player-container').classList.add('hide-cursor'); const vjs = document.querySelector('.video-js'); if (vjs) vjs.classList.add('hide-cursor'); } }, 3000); }
 
@@ -323,6 +281,7 @@
         let autoQualityTimer = null;
         let isQualitySwitching = false;
         let pendingSeekTime = null;
+        let forceHideBigPlay = false;
         function getAutoQualityLabel() { try { const tech = player && player.tech(true); const vhs = tech && (tech.vhs || tech.Vhs); const pc = vhs && vhs.playlistController; const media = pc && pc.media && pc.media(); const res = media && media.attributes && media.attributes.RESOLUTION; const height = res && res.height; if (height) return height + 'p'; } catch (err) {} try { const vh = player && player.videoHeight && player.videoHeight(); if (vh) return vh + 'p'; } catch (err) {} return null; }
         function isAutoSelected() { if (currentQualityLabel === 'Auto') return true; const active = document.querySelector('#qualityDropdown .custom-dropdown-item.active'); if (active && active.dataset && active.dataset.quality) return active.dataset.quality === 'Auto'; return false; }
         function updateAutoQualityLabel() { if (!player || !isAutoSelected()) return; const q = getAutoQualityLabel(); const qualityBtn = document.getElementById('qualityBtn'); if (!qualityBtn) return; const icon = qualityBtn.querySelector('span'); if (q) { icon.textContent = q + ' (Auto)'; } else { icon.textContent = 'AUTO'; } }
@@ -338,13 +297,3 @@
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
